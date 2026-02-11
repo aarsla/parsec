@@ -2,9 +2,10 @@ import { useEffect, useRef } from "react";
 
 interface Props {
   amplitudes: number[];
+  barColor?: string;
 }
 
-export default function Waveform({ amplitudes }: Props) {
+export default function Waveform({ amplitudes, barColor = "59, 130, 246" }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -36,7 +37,7 @@ export default function Waveform({ amplitudes }: Props) {
       const normalized = Math.min(amp * 8, 1);
       const barHeight = Math.max(2, normalized * (h * 0.8));
 
-      ctx.fillStyle = `rgba(59, 130, 246, ${0.5 + normalized * 0.5})`;
+      ctx.fillStyle = `rgba(${barColor}, ${0.5 + normalized * 0.5})`;
       ctx.beginPath();
       ctx.roundRect(
         i * step,

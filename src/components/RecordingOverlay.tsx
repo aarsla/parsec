@@ -2,18 +2,54 @@ import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { LogicalPosition } from "@tauri-apps/api/dpi";
+import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import { availableMonitors, cursorPosition } from "@tauri-apps/api/window";
 import Waveform from "./Waveform";
+
+export type OverlayTheme = "default" | "minimal" | "glass" | "compact";
 
 type OverlayPosition =
   | "top-left" | "top-center" | "top-right"
   | "center-left" | "center" | "center-right"
   | "bottom-left" | "bottom-center" | "bottom-right";
 
-const OVERLAY_W = 320;
-const OVERLAY_H = 120;
 const MARGIN = 20;
+
+interface ThemeConfig {
+  w: number;
+  h: number;
+  showWaveform: boolean;
+  showButtons: boolean;
+  containerClass: string;
+  waveformColor: string;
+}
+
+const THEME_CONFIGS: Record<OverlayTheme, ThemeConfig> = {
+  default: {
+    w: 320, h: 120,
+    showWaveform: true, showButtons: true,
+    containerClass: "bg-zinc-900/90 rounded-3xl",
+    waveformColor: "",  // resolved from accent
+  },
+  minimal: {
+    w: 220, h: 44,
+    showWaveform: false, showButtons: true,
+    containerClass: "bg-zinc-900/90 rounded-full",
+    waveformColor: "",
+  },
+  glass: {
+    w: 320, h: 120,
+    showWaveform: true, showButtons: true,
+    containerClass: "bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl",
+    waveformColor: "255, 255, 255",
+  },
+  compact: {
+    w: 110, h: 36,
+    showWaveform: false, showButtons: false,
+    containerClass: "bg-zinc-900/90 rounded-full",
+    waveformColor: "",
+  },
+};
 
 interface WorkArea {
   x: number;
@@ -22,22 +58,25 @@ interface WorkArea {
   height: number;
 }
 
-async function positionOverlay(win: ReturnType<typeof getCurrentWebviewWindow>) {
+async function positionOverlay(
+  win: ReturnType<typeof getCurrentWebviewWindow>,
+  w: number,
+  h: number,
+) {
   const pos = (localStorage.getItem("overlayPosition") || "center") as OverlayPosition;
   try {
-    // Try native work area (excludes dock/menu bar on macOS)
+    await win.setSize(new LogicalSize(w, h));
+
     const workArea = await invoke<WorkArea | null>("get_work_area_at_cursor");
 
     let mx: number, my: number, mw: number, mh: number;
 
     if (workArea) {
-      // CG returns logical coordinates directly
       mx = workArea.x;
       my = workArea.y;
       mw = workArea.width;
       mh = workArea.height;
     } else {
-      // Fallback: full monitor bounds
       const cursor = await cursorPosition();
       const monitors = await availableMonitors();
       const monitor = monitors.find((m) => {
@@ -61,24 +100,39 @@ async function positionOverlay(win: ReturnType<typeof getCurrentWebviewWindow>) 
     if (pos.includes("left")) {
       x = mx + MARGIN;
     } else if (pos.includes("right")) {
-      x = mx + mw - OVERLAY_W - MARGIN;
+      x = mx + mw - w - MARGIN;
     } else {
-      x = mx + (mw - OVERLAY_W) / 2;
+      x = mx + (mw - w) / 2;
     }
 
     // Vertical
     if (pos.startsWith("top")) {
       y = my + MARGIN;
     } else if (pos.startsWith("bottom")) {
-      y = my + mh - OVERLAY_H - MARGIN;
+      y = my + mh - h - MARGIN;
     } else {
-      y = my + (mh - OVERLAY_H) / 2;
+      y = my + (mh - h) / 2;
     }
 
     await win.setPosition(new LogicalPosition(x, y));
   } catch (e) {
     console.error("Failed to position overlay:", e);
   }
+}
+
+const ACCENT_RGB: Record<string, string> = {
+  zinc:   "161, 161, 170",
+  orange: "234, 136, 0",
+  teal:   "0, 172, 172",
+  green:  "0, 172, 105",
+  blue:   "59, 130, 246",
+  purple: "147, 81, 255",
+  red:    "225, 72, 59",
+};
+
+function getAccentWaveformColor(): string {
+  const accent = localStorage.getItem("accentColor") || "blue";
+  return ACCENT_RGB[accent] || ACCENT_RGB.blue;
 }
 
 interface Props {
@@ -90,6 +144,10 @@ export default function RecordingOverlay({ status }: Props) {
   const [seconds, setSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const theme = (localStorage.getItem("overlayTheme") || "default") as OverlayTheme;
+  const config = THEME_CONFIGS[theme];
+  const waveformColor = config.waveformColor || getAccentWaveformColor();
+
   // Transparent background so rounded corners show through
   useEffect(() => {
     document.documentElement.style.background = "transparent";
@@ -100,7 +158,7 @@ export default function RecordingOverlay({ status }: Props) {
     const win = getCurrentWebviewWindow();
 
     if (status === "recording") {
-      positionOverlay(win).then(() => win.show());
+      positionOverlay(win, config.w, config.h).then(() => win.show());
       setSeconds(0);
       setAmplitudes([]);
       timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
@@ -166,22 +224,66 @@ export default function RecordingOverlay({ status }: Props) {
   };
 
   if (status === "transcribing") {
+    const isSmall = theme === "compact" || theme === "minimal";
     return (
-      <div className="flex items-center justify-center h-full bg-zinc-900/90 rounded-3xl px-6 select-none"
-           data-tauri-drag-region>
-        <div className="flex items-center gap-3 text-zinc-300 text-sm">
-          <div className="w-4 h-4 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" />
-          Transcribing...
+      <div
+        className={`flex items-center justify-center h-full px-4 select-none ${config.containerClass}`}
+
+        data-tauri-drag-region
+      >
+        <div className={`flex items-center gap-2 text-zinc-300 ${isSmall ? "text-xs" : "text-sm"}`}>
+          <div className={`${isSmall ? "w-3 h-3" : "w-4 h-4"} border-2 border-zinc-400 border-t-transparent rounded-full animate-spin`} />
+          {!isSmall && "Transcribing..."}
         </div>
       </div>
     );
   }
 
+  // Compact: red dot + timer only, no buttons
+  if (theme === "compact") {
+    return (
+      <div
+        className={`flex items-center justify-center gap-2 h-full px-4 select-none ${config.containerClass}`}
+        data-tauri-drag-region
+      >
+        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+        <span className="text-zinc-300 font-mono text-xs">{formatTime(seconds)}</span>
+      </div>
+    );
+  }
+
+  // Minimal: red dot + timer + waveform + Done button, pill shape
+  if (theme === "minimal") {
+    return (
+      <div
+        className={`flex items-center h-full px-4 gap-3 select-none ${config.containerClass}`}
+        data-tauri-drag-region
+      >
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          <span className="text-zinc-300 font-mono text-xs">{formatTime(seconds)}</span>
+        </div>
+        <div className="flex-1 min-w-0 flex items-center h-6">
+          <Waveform amplitudes={amplitudes} barColor={waveformColor} />
+        </div>
+        <button
+          onClick={handleStop}
+          className="px-2 py-0.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs transition-colors shrink-0"
+        >
+          Done
+        </button>
+      </div>
+    );
+  }
+
+  // Default / Glass / Accent: full layout with waveform + timer + buttons
   return (
-    <div className="flex flex-col h-full bg-zinc-900/90 rounded-3xl px-4 py-3 select-none"
-         data-tauri-drag-region>
+    <div
+      className={`flex flex-col h-full px-4 py-3 select-none ${config.containerClass}`}
+      data-tauri-drag-region
+    >
       <div className="flex-1 flex items-center">
-        <Waveform amplitudes={amplitudes} />
+        <Waveform amplitudes={amplitudes} barColor={waveformColor} />
       </div>
       <div className="flex items-center justify-between text-xs text-zinc-400">
         <div className="flex items-center gap-2">
