@@ -24,6 +24,9 @@
     "autostart:allow-is-enabled",
     "updater:default",
     "process:allow-restart",
-    "core:window:allow-set-size"
+    "core:window:allow-set-size",
+    "core:window:allow-outer-position",
+    "core:window:allow-outer-size",
+    "core:window:allow-scale-factor"
   ]
 }

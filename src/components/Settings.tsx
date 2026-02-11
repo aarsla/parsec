@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { load } from "@tauri-apps/plugin-store";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { check } from "@tauri-apps/plugin-updater";
@@ -441,6 +441,38 @@ export default function Settings() {
     invoke<string>("get_current_hotkey").then(setHotkey);
     checkPermissions();
     loadAppSettings();
+  }, []);
+
+  // Restore saved window position/size and save on close
+  // Save window position/size on move/resize (restored in Rust on create)
+  useEffect(() => {
+    const win = getCurrentWebviewWindow();
+    let timer: ReturnType<typeof setTimeout>;
+    const saveGeometry = () => {
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        try {
+          const pos = await win.outerPosition();
+          const size = await win.outerSize();
+          const factor = await win.scaleFactor();
+          const store = await load("settings.json");
+          await store.set("settingsGeometry", {
+            x: pos.x / factor,
+            y: pos.y / factor,
+            w: size.width / factor,
+            h: size.height / factor,
+          });
+        } catch {}
+      }, 500);
+    };
+
+    const u1 = win.onMoved(saveGeometry);
+    const u2 = win.onResized(saveGeometry);
+    return () => {
+      clearTimeout(timer);
+      u1.then((fn) => fn());
+      u2.then((fn) => fn());
+    };
   }, []);
 
   // Listen for system theme changes when in "system" mode

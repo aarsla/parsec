@@ -7,6 +7,7 @@ mod state;
 mod transcriber;
 
 use state::{AppState, Status};
+use tauri_plugin_store::StoreExt;
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
     tray::TrayIconBuilder,
@@ -239,15 +240,36 @@ fn create_settings_window(app: &tauri::AppHandle) -> tauri::Result<()> {
         return Ok(());
     }
 
-    WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("/settings".into()))
+    let mut builder = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("/settings".into()))
         .title("Parsec")
-        .inner_size(800.0, 600.0)
         .min_inner_size(520.0, 400.0)
         .resizable(true)
-        .center()
-        .background_color(Color(32, 32, 32, 255))
-        .build()?;
+        .background_color(Color(32, 32, 32, 255));
 
+    // Restore saved geometry or center with defaults
+    let store = app.store("settings.json").ok();
+    let geom = store.as_ref().and_then(|s| {
+        let x = s.get("settingsGeometry")?;
+        let obj = x.as_object()?;
+        Some((
+            obj.get("x")?.as_f64()?,
+            obj.get("y")?.as_f64()?,
+            obj.get("w")?.as_f64()?,
+            obj.get("h")?.as_f64()?,
+        ))
+    });
+
+    if let Some((x, y, w, h)) = geom {
+        builder = builder
+            .inner_size(w, h)
+            .position(x, y);
+    } else {
+        builder = builder
+            .inner_size(800.0, 600.0)
+            .center();
+    }
+
+    builder.build()?;
     Ok(())
 }
 
