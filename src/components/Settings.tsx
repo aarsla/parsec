@@ -675,6 +675,10 @@ export default function Settings() {
   const handleDownloadModel = async () => {
     setModelActionLoading(true);
     try {
+      // Delete existing model first so progress card shows cleanly
+      await invoke("delete_model");
+      const info = await invoke<ModelInfo>("get_model_status");
+      setModelInfo(info);
       await invoke("download_model");
     } catch (e) {
       console.error("Failed to download model:", e);
