@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+
 import { load } from "@tauri-apps/plugin-store";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { check } from "@tauri-apps/plugin-updater";
@@ -496,6 +497,7 @@ export default function Settings() {
         localStorage.setItem("overlayTheme", savedOverlayTheme);
       }
 
+
       const savedAutoUpdate = await store.get<boolean>("autoUpdate");
       if (savedAutoUpdate !== null && savedAutoUpdate !== undefined) {
         setAutoUpdate(savedAutoUpdate);
@@ -595,6 +597,7 @@ export default function Settings() {
     }
   };
 
+
   const handleAutoUpdateChange = async (enabled: boolean) => {
     setAutoUpdate(enabled);
     try {
@@ -640,6 +643,7 @@ export default function Settings() {
     setThemeMode(mode);
     applyTheme(mode);
     localStorage.setItem("themeMode", mode);
+
     try {
       const store = await load("settings.json");
       await store.set("themeMode", mode);
@@ -652,6 +656,7 @@ export default function Settings() {
     setAccentColor(accent);
     applyAccent(accent);
     localStorage.setItem("accentColor", accent);
+
     try {
       const store = await load("settings.json");
       await store.set("accentColor", accent);

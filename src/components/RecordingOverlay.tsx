@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import { availableMonitors, cursorPosition } from "@tauri-apps/api/window";
+import { load } from "@tauri-apps/plugin-store";
 import Waveform from "./Waveform";
 
 export type OverlayTheme = "default" | "minimal" | "glass" | "compact";
@@ -26,19 +27,19 @@ interface ThemeConfig {
 
 const THEME_CONFIGS: Record<OverlayTheme, ThemeConfig> = {
   default: {
-    w: 320, h: 120,
+    w: 320, h: 96,
     showWaveform: true, showButtons: true,
-    containerClass: "bg-zinc-900/90 rounded-3xl",
-    waveformColor: "",  // resolved from accent
+    containerClass: "bg-background/90 rounded-3xl",
+    waveformColor: "",
   },
   minimal: {
-    w: 220, h: 44,
+    w: 320, h: 44,
     showWaveform: false, showButtons: true,
-    containerClass: "bg-zinc-900/90 rounded-full",
+    containerClass: "bg-background/90 rounded-full",
     waveformColor: "",
   },
   glass: {
-    w: 320, h: 120,
+    w: 320, h: 96,
     showWaveform: true, showButtons: true,
     containerClass: "bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl",
     waveformColor: "255, 255, 255",
@@ -46,7 +47,7 @@ const THEME_CONFIGS: Record<OverlayTheme, ThemeConfig> = {
   compact: {
     w: 110, h: 36,
     showWaveform: false, showButtons: false,
-    containerClass: "bg-zinc-900/90 rounded-full",
+    containerClass: "bg-background/90 rounded-full",
     waveformColor: "",
   },
 };
@@ -130,10 +131,6 @@ const ACCENT_RGB: Record<string, string> = {
   red:    "225, 72, 59",
 };
 
-function getAccentWaveformColor(): string {
-  const accent = localStorage.getItem("accentColor") || "blue";
-  return ACCENT_RGB[accent] || ACCENT_RGB.blue;
-}
 
 interface Props {
   status: string;
@@ -143,15 +140,40 @@ export default function RecordingOverlay({ status }: Props) {
   const [amplitudes, setAmplitudes] = useState<number[]>([]);
   const [seconds, setSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [theme, setTheme] = useState<OverlayTheme>(
+    () => (localStorage.getItem("overlayTheme") || "default") as OverlayTheme
+  );
+  const [accentKey, setAccentKey] = useState(() => localStorage.getItem("accentColor") || "blue");
+  // Sync settings cross-window via tauri store onKeyChange
+  useEffect(() => {
+    let cleanups: (() => void)[] = [];
+    load("settings.json").then(async (store) => {
+      const u1 = await store.onKeyChange<string>("overlayTheme", (v) => {
+        if (v) setTheme(v as OverlayTheme);
+      });
+      const u2 = await store.onKeyChange<string>("accentColor", (v) => {
+        if (v) setAccentKey(v);
+      });
+      const u3 = await store.onKeyChange<string>("themeMode", (v) => {
+        const root = document.documentElement;
+        if (v === "dark") root.classList.add("dark");
+        else if (v === "light") root.classList.remove("dark");
+        else root.classList.toggle("dark", window.matchMedia("(prefers-color-scheme: dark)").matches);
+      });
+      cleanups = [u1, u2, u3];
+    });
+    return () => { cleanups.forEach((fn) => fn()); };
+  }, []);
 
-  const theme = (localStorage.getItem("overlayTheme") || "default") as OverlayTheme;
   const config = THEME_CONFIGS[theme];
-  const waveformColor = config.waveformColor || getAccentWaveformColor();
+  const waveformColor = config.waveformColor || (ACCENT_RGB[accentKey] || ACCENT_RGB.blue);
 
-  // Transparent background so rounded corners show through
+  // Transparent background so rounded corners show through, hide scrollbars
   useEffect(() => {
     document.documentElement.style.background = "transparent";
+    document.documentElement.style.overflow = "hidden";
     document.body.style.background = "transparent";
+    document.body.style.overflow = "hidden";
   }, []);
 
   useEffect(() => {
@@ -175,7 +197,7 @@ export default function RecordingOverlay({ status }: Props) {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [status]);
+  }, [status, theme]);
 
   useEffect(() => {
     if (status !== "recording") return;
@@ -231,8 +253,8 @@ export default function RecordingOverlay({ status }: Props) {
 
         data-tauri-drag-region
       >
-        <div className={`flex items-center gap-2 text-zinc-300 ${isSmall ? "text-xs" : "text-sm"}`}>
-          <div className={`${isSmall ? "w-3 h-3" : "w-4 h-4"} border-2 border-zinc-400 border-t-transparent rounded-full animate-spin`} />
+        <div className={`flex items-center gap-2 text-foreground ${isSmall ? "text-xs" : "text-sm"}`}>
+          <div className={`${isSmall ? "w-3 h-3" : "w-4 h-4"} border-2 border-muted-foreground border-t-transparent rounded-full animate-spin`} />
           {!isSmall && "Transcribing..."}
         </div>
       </div>
@@ -247,7 +269,7 @@ export default function RecordingOverlay({ status }: Props) {
         data-tauri-drag-region
       >
         <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-        <span className="text-zinc-300 font-mono text-xs">{formatTime(seconds)}</span>
+        <span className="text-foreground font-mono text-xs">{formatTime(seconds)}</span>
       </div>
     );
   }
@@ -261,7 +283,7 @@ export default function RecordingOverlay({ status }: Props) {
       >
         <div className="flex items-center gap-2 shrink-0">
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          <span className="text-zinc-300 font-mono text-xs">{formatTime(seconds)}</span>
+          <span className="text-foreground font-mono text-xs">{formatTime(seconds)}</span>
         </div>
         <div className="flex-1 min-w-0 flex items-center h-6">
           <Waveform amplitudes={amplitudes} barColor={waveformColor} />
@@ -285,15 +307,15 @@ export default function RecordingOverlay({ status }: Props) {
       <div className="flex-1 flex items-center">
         <Waveform amplitudes={amplitudes} barColor={waveformColor} />
       </div>
-      <div className="flex items-center justify-between text-xs text-zinc-400">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          <span className="text-zinc-300 font-mono">{formatTime(seconds)}</span>
+          <span className="text-foreground font-mono">{formatTime(seconds)}</span>
         </div>
         <div className="flex gap-2">
           <button
             onClick={handleCancel}
-            className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors"
+            className="px-2 py-1 rounded bg-secondary hover:bg-accent text-muted-foreground transition-colors"
           >
             Cancel
           </button>

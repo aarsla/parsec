@@ -219,7 +219,7 @@ fn create_overlay_window(app: &tauri::AppHandle) -> tauri::Result<()> {
 
     WebviewWindowBuilder::new(app, "overlay", WebviewUrl::App("/overlay".into()))
         .title("Parsec Recording")
-        .inner_size(320.0, 120.0)
+        .inner_size(320.0, 96.0)
         .resizable(false)
         .decorations(false)
         .always_on_top(true)
