@@ -709,7 +709,7 @@ export default function Settings() {
   ];
 
   return (
-    <div className="h-full flex bg-background">
+    <div className="h-full flex overflow-hidden bg-background">
       {/* Sidebar */}
       <div className="w-48 shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col">
         <div
@@ -746,7 +746,7 @@ export default function Settings() {
             className="h-8 shrink-0"
             data-tauri-drag-region
           />
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-hidden">
             <History />
           </div>
         </div>

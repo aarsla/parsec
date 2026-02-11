@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { load } from "@tauri-apps/plugin-store";
 import { Search, Copy, Trash2, Check, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -63,7 +64,40 @@ export default function History() {
   const [clearing, setClearing] = useState(false);
   const [page, setPage] = useState(0);
   const [dateFilter, setDateFilter] = useState<"all" | "today" | "yesterday">("all");
+  const [listWidth, setListWidth] = useState(256);
+  const dragging = useRef(false);
   const PAGE_SIZE = 15;
+
+  // Restore persisted split width
+  useEffect(() => {
+    load("settings.json").then((store) =>
+      store.get<number>("historyListWidth").then((w) => {
+        if (w && w >= 180 && w <= 480) setListWidth(w);
+      })
+    ).catch(() => {});
+  }, []);
+
+  const onResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dragging.current = true;
+    const startX = e.clientX;
+    const startW = listWidth;
+    const onMove = (ev: MouseEvent) => {
+      const w = Math.min(480, Math.max(180, startW + ev.clientX - startX));
+      setListWidth(w);
+    };
+    const onUp = (ev: MouseEvent) => {
+      dragging.current = false;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      const finalW = Math.min(480, Math.max(180, startW + ev.clientX - startX));
+      load("settings.json").then((store) =>
+        store.set("historyListWidth", finalW)
+      ).catch(() => {});
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [listWidth]);
 
   const loadEntries = async () => {
     try {
@@ -92,8 +126,11 @@ export default function History() {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const yesterday = new Date(today.getTime() - 86400000);
-      const cutoff = dateFilter === "today" ? today : yesterday;
-      result = result.filter((e) => e.timestamp >= cutoff.getTime());
+      if (dateFilter === "today") {
+        result = result.filter((e) => e.timestamp >= today.getTime());
+      } else {
+        result = result.filter((e) => e.timestamp >= yesterday.getTime() && e.timestamp < today.getTime());
+      }
     }
 
     // Search filter
@@ -178,9 +215,9 @@ export default function History() {
   }, [clearing]);
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full min-h-0">
       {/* Left panel — list */}
-      <div className="w-64 shrink-0 border-r border-border flex flex-col">
+      <div className="shrink-0 flex flex-col min-h-0" style={{ width: listWidth }}>
         <div className="p-3 space-y-2">
           <div className="relative">
             <Search
@@ -219,57 +256,55 @@ export default function History() {
           </div>
         </div>
 
-        <ScrollArea className="flex-1">
-          <div className="px-2">
-            {filtered.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-8">
-                {entries.length === 0
-                  ? "No transcriptions yet"
-                  : "No results found"}
-              </p>
-            ) : (
-              grouped.map((group) => (
-                <div key={group.label}>
-                  <div className="px-3 pt-3 pb-1">
-                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                      {group.label}
-                    </span>
-                  </div>
-                  {group.entries.map((entry) => (
-                    <button
-                      key={entry.id}
-                      onClick={() => setSelectedId(entry.id)}
-                      className={`w-full text-left px-3 py-1.5 rounded-lg mb-0.5 transition-colors ${
-                        selectedId === entry.id
-                          ? "bg-sidebar-accent"
-                          : "hover:bg-sidebar-accent/50"
-                      }`}
-                    >
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-xs font-medium text-foreground truncate">
-                          {getTitle(entry)}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground shrink-0">
-                          {formatTime(entry.timestamp)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        {entry.app_name && (
-                          <span className="text-[10px] text-muted-foreground/70">
-                            {entry.app_name}
-                          </span>
-                        )}
-                        <span className="text-[10px] text-muted-foreground/50">
-                          {entry.char_count} chars
-                        </span>
-                      </div>
-                    </button>
-                  ))}
+        <div className="flex-1 min-h-0 overflow-y-auto px-2">
+          {filtered.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-8">
+              {entries.length === 0
+                ? "No transcriptions yet"
+                : "No results found"}
+            </p>
+          ) : (
+            grouped.map((group) => (
+              <div key={group.label}>
+                <div className="px-3 pt-3 pb-1">
+                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                    {group.label}
+                  </span>
                 </div>
-              ))
-            )}
-          </div>
-        </ScrollArea>
+                {group.entries.map((entry) => (
+                  <button
+                    key={entry.id}
+                    onClick={() => setSelectedId(entry.id)}
+                    className={`w-full text-left px-3 py-1.5 rounded-lg mb-0.5 transition-colors ${
+                      selectedId === entry.id
+                        ? "bg-sidebar-accent"
+                        : "hover:bg-sidebar-accent/50"
+                    }`}
+                  >
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-xs font-medium text-foreground truncate">
+                        {getTitle(entry)}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground shrink-0">
+                        {formatTime(entry.timestamp)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      {entry.app_name && (
+                        <span className="text-[10px] text-muted-foreground/70">
+                          {entry.app_name}
+                        </span>
+                      )}
+                      <span className="text-[10px] text-muted-foreground/50">
+                        {entry.char_count} chars
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
 
         <div className="px-3 py-2 border-t border-border space-y-1.5">
           {totalPages > 1 && (
@@ -312,6 +347,12 @@ export default function History() {
           </div>
         </div>
       </div>
+
+      {/* Resize handle */}
+      <div
+        onMouseDown={onResizeStart}
+        className="w-1 shrink-0 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors border-r border-border"
+      />
 
       {/* Right panel — detail */}
       <div className="flex-1 min-w-0">
