@@ -116,6 +116,11 @@ fn check_accessibility_permission() -> String {
 }
 
 #[tauri::command]
+fn set_dock_visible(app: tauri::AppHandle, visible: bool) -> Result<(), String> {
+    app.set_dock_visibility(visible).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn open_privacy_settings(pane: String) {
     #[cfg(target_os = "macos")]
     {
@@ -159,7 +164,7 @@ fn create_settings_window(app: &tauri::AppHandle) -> tauri::Result<()> {
 
     WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("/settings".into()))
         .title("Parsec")
-        .inner_size(680.0, 520.0)
+        .inner_size(800.0, 600.0)
         .min_inner_size(520.0, 400.0)
         .resizable(true)
         .center()
@@ -217,6 +222,8 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
             get_input_devices,
@@ -229,6 +236,7 @@ pub fn run() {
             check_microphone_permission,
             check_accessibility_permission,
             open_privacy_settings,
+            set_dock_visible,
         ])
         .setup(|app| {
             // Create overlay window (hidden by default)

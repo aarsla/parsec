@@ -85,6 +85,10 @@ export default function App() {
     const unlistenToggle = listen<string>("recording-toggle", async (event) => {
       if (event.payload === "start") {
         try {
+          const sound = localStorage.getItem("startSound") || "chirp";
+          if (sound !== "none") {
+            new Audio(`/sounds/${sound}.mp3`).play().catch(() => {});
+          }
           await invoke("start_recording");
         } catch (e) {
           console.error("Failed to start recording:", e);

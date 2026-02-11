@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { load } from "@tauri-apps/plugin-store";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
+import { check } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import {
   Mic,
   Keyboard,
@@ -13,6 +15,9 @@ import {
   Moon,
   Monitor,
   Check,
+  Play,
+  RefreshCw,
+  Download,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -26,9 +31,17 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 type PermissionStatus = "granted" | "denied" | "unknown" | "checking";
-type Section = "general" | "permissions" | "recording" | "output" | "about";
+type Section = "general" | "permissions" | "recording" | "output" | "updates" | "about";
 type ThemeMode = "light" | "dark" | "system";
 type AccentColor = "zinc" | "orange" | "teal" | "green" | "blue" | "purple" | "red";
+type StartSound = "chirp" | "ping" | "blip" | "none";
+
+const START_SOUNDS: { id: StartSound; label: string }[] = [
+  { id: "chirp", label: "Chirp" },
+  { id: "ping", label: "Ping" },
+  { id: "blip", label: "Blip" },
+  { id: "none", label: "None" },
+];
 
 const ACCENT_PRESETS: Record<AccentColor, { light: string; dark: string }> = {
   zinc:   { light: "oklch(0.205 0 0)",     dark: "oklch(0.75 0.01 75)" },
@@ -384,6 +397,11 @@ export default function Settings() {
   const [a11yPermission, setA11yPermission] =
     useState<PermissionStatus>("checking");
   const [autostart, setAutostart] = useState(false);
+  const [showInDock, setShowInDock] = useState(true);
+  const [startSound, setStartSound] = useState<StartSound>("chirp");
+  const [autoUpdate, setAutoUpdate] = useState(true);
+  const [lastChecked, setLastChecked] = useState<string>("");
+  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "downloading" | "up-to-date">("idle");
   const [themeMode, setThemeMode] = useState<ThemeMode>("system");
   const [accentColor, setAccentColor] = useState<AccentColor>("zinc");
 
@@ -429,6 +447,26 @@ export default function Settings() {
 
       const autostartEnabled = await isEnabled();
       setAutostart(autostartEnabled);
+
+      const savedDock = await store.get<boolean>("showInDock");
+      if (savedDock !== null && savedDock !== undefined) {
+        setShowInDock(savedDock);
+      }
+
+      const savedSound = await store.get<StartSound>("startSound");
+      if (savedSound) {
+        setStartSound(savedSound);
+        localStorage.setItem("startSound", savedSound);
+      }
+
+      const savedAutoUpdate = await store.get<boolean>("autoUpdate");
+      if (savedAutoUpdate !== null && savedAutoUpdate !== undefined) {
+        setAutoUpdate(savedAutoUpdate);
+      }
+      const savedLastChecked = await store.get<string>("lastChecked");
+      if (savedLastChecked) {
+        setLastChecked(savedLastChecked);
+      }
     } catch (e) {
       console.error("Failed to load settings:", e);
       applyTheme("system");
@@ -470,6 +508,75 @@ export default function Settings() {
     }
   };
 
+  const handleDockChange = async (visible: boolean) => {
+    try {
+      await invoke("set_dock_visible", { visible });
+      setShowInDock(visible);
+      const store = await load("settings.json");
+      await store.set("showInDock", visible);
+    } catch (e) {
+      console.error("Failed to toggle dock visibility:", e);
+    }
+  };
+
+  const handleStartSoundChange = async (sound: StartSound) => {
+    setStartSound(sound);
+    localStorage.setItem("startSound", sound);
+    try {
+      const store = await load("settings.json");
+      await store.set("startSound", sound);
+    } catch (e) {
+      console.error("Failed to save start sound:", e);
+    }
+  };
+
+  const playStartSound = () => {
+    if (startSound !== "none") {
+      new Audio(`/sounds/${startSound}.mp3`).play().catch(() => {});
+    }
+  };
+
+  const handleAutoUpdateChange = async (enabled: boolean) => {
+    setAutoUpdate(enabled);
+    try {
+      const store = await load("settings.json");
+      await store.set("autoUpdate", enabled);
+    } catch (e) {
+      console.error("Failed to save auto-update:", e);
+    }
+  };
+
+  const checkForUpdates = async () => {
+    setUpdateStatus("checking");
+    try {
+      const update = await check();
+      const now = new Date().toLocaleString("en-US", {
+        month: "short", day: "numeric", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      });
+      setLastChecked(now);
+      const store = await load("settings.json");
+      await store.set("lastChecked", now);
+
+      if (update) {
+        setUpdateStatus("available");
+        if (confirm(`Update ${update.version} is available. Download and install?`)) {
+          setUpdateStatus("downloading");
+          await update.downloadAndInstall();
+          await relaunch();
+        } else {
+          setUpdateStatus("idle");
+        }
+      } else {
+        setUpdateStatus("up-to-date");
+        setTimeout(() => setUpdateStatus("idle"), 3000);
+      }
+    } catch (e) {
+      console.error("Update check failed:", e);
+      setUpdateStatus("idle");
+    }
+  };
+
   const handleThemeChange = async (mode: ThemeMode) => {
     setThemeMode(mode);
     applyTheme(mode);
@@ -499,6 +606,7 @@ export default function Settings() {
     { id: "permissions", label: "Permissions", icon: <Shield size={16} /> },
     { id: "recording", label: "Recording", icon: <Mic size={16} /> },
     { id: "output", label: "Output", icon: <ClipboardPaste size={16} /> },
+    { id: "updates", label: "Updates", icon: <Download size={16} /> },
     { id: "about", label: "About", icon: <Info size={16} /> },
   ];
 
@@ -542,7 +650,7 @@ export default function Settings() {
         <div className="p-6">
           {activeSection === "general" && (
             <div className="space-y-4">
-              <SectionCard title="App Settings" icon={<SettingsIcon size={14} />}>
+              <SectionCard title="Startup & Dock" icon={<SettingsIcon size={14} />}>
                 <SettingRow
                   label="Launch at startup"
                   description="Automatically start Parsec when you log in"
@@ -554,7 +662,20 @@ export default function Settings() {
                 </SettingRow>
                 <Separator />
                 <SettingRow
-                  label="Appearance"
+                  label="Show in Dock"
+                  description="Display Parsec icon in the Dock"
+                  note="Note: May require app restart to take effect."
+                >
+                  <Switch
+                    checked={showInDock}
+                    onCheckedChange={handleDockChange}
+                  />
+                </SettingRow>
+              </SectionCard>
+
+              <SectionCard title="Appearance" icon={<Sun size={14} />}>
+                <SettingRow
+                  label="Theme"
                   description="Choose light, dark, or match your system"
                 >
                   <ThemePicker value={themeMode} onChange={handleThemeChange} />
@@ -566,6 +687,78 @@ export default function Settings() {
                 >
                   <AccentPicker value={accentColor} onChange={handleAccentChange} />
                 </SettingRow>
+              </SectionCard>
+
+              <SectionCard title="Sound" icon={<Mic size={14} />}>
+                <SettingRow
+                  label="Start Sound"
+                  description="Choose which sound plays when recording starts"
+                >
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={startSound}
+                      onValueChange={(v) => handleStartSoundChange(v as StartSound)}
+                    >
+                      <SelectTrigger className="w-28">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {START_SOUNDS.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <button
+                      onClick={playStartSound}
+                      disabled={startSound === "none"}
+                      className="p-1.5 rounded-md bg-secondary border border-border hover:bg-accent
+                                 text-muted-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                      title="Preview sound"
+                    >
+                      <Play size={14} />
+                    </button>
+                  </div>
+                </SettingRow>
+              </SectionCard>
+            </div>
+          )}
+
+          {activeSection === "updates" && (
+            <div className="space-y-4">
+              <SectionCard title="Automatic Updates" icon={<Download size={14} />}>
+                <SettingRow
+                  label="Automatic Updates"
+                  description="Check for updates automatically once per hour"
+                  note={lastChecked ? `Last checked: ${lastChecked}` : undefined}
+                >
+                  <Switch
+                    checked={autoUpdate}
+                    onCheckedChange={handleAutoUpdateChange}
+                  />
+                </SettingRow>
+                <div className="flex items-center gap-2 py-3">
+                  <button
+                    onClick={checkForUpdates}
+                    disabled={updateStatus === "checking" || updateStatus === "downloading"}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md
+                               bg-primary text-primary-foreground hover:bg-primary/90
+                               transition-colors disabled:opacity-50"
+                  >
+                    {updateStatus === "checking" ? (
+                      <RefreshCw size={12} className="animate-spin" />
+                    ) : updateStatus === "downloading" ? (
+                      <Download size={12} className="animate-pulse" />
+                    ) : (
+                      <RefreshCw size={12} />
+                    )}
+                    {updateStatus === "checking" ? "Checking..." :
+                     updateStatus === "downloading" ? "Installing..." :
+                     updateStatus === "up-to-date" ? "Up to date" :
+                     "Check for Updates"}
+                  </button>
+                </div>
               </SectionCard>
             </div>
           )}
