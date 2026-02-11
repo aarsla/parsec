@@ -90,6 +90,12 @@ export default function RecordingOverlay({ status }: Props) {
   const [seconds, setSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Transparent background so rounded corners show through
+  useEffect(() => {
+    document.documentElement.style.background = "transparent";
+    document.body.style.background = "transparent";
+  }, []);
+
   useEffect(() => {
     const win = getCurrentWebviewWindow();
 

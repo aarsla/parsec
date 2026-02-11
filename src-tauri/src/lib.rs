@@ -223,6 +223,7 @@ fn create_overlay_window(app: &tauri::AppHandle) -> tauri::Result<()> {
         .resizable(false)
         .decorations(false)
         .always_on_top(true)
+        .transparent(true)
         .visible(false)
         .focused(false)
         .skip_taskbar(true)
