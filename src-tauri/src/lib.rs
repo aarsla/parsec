@@ -168,6 +168,49 @@ fn open_privacy_settings(pane: String) {
     }
 }
 
+#[derive(serde::Serialize)]
+struct WorkArea {
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+}
+
+#[tauri::command]
+fn get_work_area_at_cursor() -> Option<WorkArea> {
+    #[cfg(target_os = "macos")]
+    {
+        macos_work_area_at_cursor()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        None
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn macos_work_area_at_cursor() -> Option<WorkArea> {
+    #[repr(C)]
+    struct ScreenRect {
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    }
+
+    extern "C" {
+        fn get_usable_bounds_at_cursor() -> ScreenRect;
+    }
+
+    let r = unsafe { get_usable_bounds_at_cursor() };
+    Some(WorkArea {
+        x: r.x,
+        y: r.y,
+        width: r.width,
+        height: r.height,
+    })
+}
+
 fn create_overlay_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     let existing = app.get_webview_window("overlay");
     if existing.is_some() {
@@ -183,7 +226,6 @@ fn create_overlay_window(app: &tauri::AppHandle) -> tauri::Result<()> {
         .visible(false)
         .focused(false)
         .skip_taskbar(true)
-        .center()
         .build()?;
 
     Ok(())
@@ -271,6 +313,7 @@ pub fn run() {
             check_accessibility_permission,
             open_privacy_settings,
             set_dock_visible,
+            get_work_area_at_cursor,
             get_history,
             delete_history_entry,
             clear_history,

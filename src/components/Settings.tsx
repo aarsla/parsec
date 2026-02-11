@@ -37,6 +37,16 @@ type Section = "general" | "permissions" | "recording" | "output" | "history" | 
 type ThemeMode = "light" | "dark" | "system";
 type AccentColor = "zinc" | "orange" | "teal" | "green" | "blue" | "purple" | "red";
 type StartSound = "chirp" | "ping" | "blip" | "none";
+type OverlayPosition =
+  | "top-left" | "top-center" | "top-right"
+  | "center-left" | "center" | "center-right"
+  | "bottom-left" | "bottom-center" | "bottom-right";
+
+const OVERLAY_POSITIONS: OverlayPosition[] = [
+  "top-left", "top-center", "top-right",
+  "center-left", "center", "center-right",
+  "bottom-left", "bottom-center", "bottom-right",
+];
 
 const START_SOUNDS: { id: StartSound; label: string }[] = [
   { id: "chirp", label: "Chirp" },
@@ -406,6 +416,7 @@ export default function Settings() {
   const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "downloading" | "up-to-date">("idle");
   const [themeMode, setThemeMode] = useState<ThemeMode>("system");
   const [accentColor, setAccentColor] = useState<AccentColor>("zinc");
+  const [overlayPosition, setOverlayPosition] = useState<OverlayPosition>("center");
 
   useEffect(() => {
     invoke<string[]>("get_input_devices").then((devs) => {
@@ -459,6 +470,12 @@ export default function Settings() {
       if (savedSound) {
         setStartSound(savedSound);
         localStorage.setItem("startSound", savedSound);
+      }
+
+      const savedOverlayPos = await store.get<OverlayPosition>("overlayPosition");
+      if (savedOverlayPos) {
+        setOverlayPosition(savedOverlayPos);
+        localStorage.setItem("overlayPosition", savedOverlayPos);
       }
 
       const savedAutoUpdate = await store.get<boolean>("autoUpdate");
@@ -535,6 +552,17 @@ export default function Settings() {
   const playStartSound = () => {
     if (startSound !== "none") {
       new Audio(`/sounds/${startSound}.mp3`).play().catch(() => {});
+    }
+  };
+
+  const handleOverlayPositionChange = async (pos: OverlayPosition) => {
+    setOverlayPosition(pos);
+    localStorage.setItem("overlayPosition", pos);
+    try {
+      const store = await load("settings.json");
+      await store.set("overlayPosition", pos);
+    } catch (e) {
+      console.error("Failed to save overlay position:", e);
     }
   };
 
@@ -839,6 +867,36 @@ export default function Settings() {
                       ))}
                     </SelectContent>
                   </Select>
+                </SettingRow>
+              </SectionCard>
+
+              <SectionCard title="Overlay" icon={<Monitor size={14} />}>
+                <SettingRow
+                  label="Screen Position"
+                  description="Where the recording overlay appears"
+                >
+                  <div className="grid grid-cols-3 gap-1 w-[72px]">
+                    {OVERLAY_POSITIONS.map((pos) => (
+                      <button
+                        key={pos}
+                        onClick={() => handleOverlayPositionChange(pos)}
+                        title={pos.replace("-", " ")}
+                        className={`w-5 h-5 rounded-sm flex items-center justify-center transition-colors ${
+                          overlayPosition === pos
+                            ? "bg-primary"
+                            : "bg-secondary hover:bg-accent border border-border"
+                        }`}
+                      >
+                        <span
+                          className={`block w-1.5 h-1.5 rounded-full ${
+                            overlayPosition === pos
+                              ? "bg-primary-foreground"
+                              : "bg-muted-foreground/50"
+                          }`}
+                        />
+                      </button>
+                    ))}
+                  </div>
                 </SettingRow>
               </SectionCard>
             </div>

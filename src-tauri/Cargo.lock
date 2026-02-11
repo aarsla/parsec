@@ -3278,6 +3278,7 @@ name = "parsec"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "cc",
  "cpal",
  "dirs 6.0.0",
  "futures-util",
