@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1E1B18"/>
+      <stop offset="100%" stop-color="#141210"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFBE4A"/>
+      <stop offset="100%" stop-color="#E8940A"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
+
+  <!-- Subtle inner border -->
+  <rect x="1.5" y="1.5" width="509" height="509" rx="106.5" fill="none" stroke="#ffffff" stroke-opacity="0.06" stroke-width="1"/>
+
+  <!-- Audio lines (based on lucide audio-lines, centered in 512x512) -->
+  <!-- 6 vertical bars, evenly spaced, varying heights -->
+  <!-- Spacing: bars at x = 116, 184, 252, 320, 388, 456 (but let's center better) -->
+  <!-- Center group: 6 bars with gap=56, bar width=18, total width = 5*56+18 = 298, offset = (512-298)/2 = 107 -->
+
+  <rect x="107" y="216" width="18" height="80" rx="9" fill="url(#bar)" opacity="0.5"/>
+  <rect x="163" y="152" width="18" height="208" rx="9" fill="url(#bar)" opacity="0.65"/>
+  <rect x="219" y="108" width="18" height="296" rx="9" fill="url(#bar)" opacity="0.85"/>
+  <rect x="275" y="172" width="18" height="168" rx="9" fill="url(#bar)" opacity="0.85"/>
+  <rect x="331" y="132" width="18" height="248" rx="9" fill="url(#bar)" opacity="0.65"/>
+  <rect x="387" y="216" width="18" height="80" rx="9" fill="url(#bar)" opacity="0.5"/>
+</svg>

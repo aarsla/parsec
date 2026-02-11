@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VTT</title>
+    <script>
+      // Sync theme from localStorage before first paint to prevent flash
+      (function() {
+        var mode = localStorage.getItem('themeMode') || 'system';
+        var accent = localStorage.getItem('accentColor') || 'zinc';
+        var dark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) document.documentElement.classList.add('dark');
+        var presets = {
+          zinc:   { light: 'oklch(0.205 0 0)',     dark: 'oklch(0.75 0.01 75)' },
+          orange: { light: 'oklch(0.58 0.19 55)',  dark: 'oklch(0.75 0.16 55)' },
+          teal:   { light: 'oklch(0.52 0.14 180)', dark: 'oklch(0.72 0.14 180)' },
+          green:  { light: 'oklch(0.52 0.16 150)', dark: 'oklch(0.72 0.17 150)' },
+          blue:   { light: 'oklch(0.50 0.18 250)', dark: 'oklch(0.70 0.17 250)' },
+          purple: { light: 'oklch(0.50 0.20 300)', dark: 'oklch(0.70 0.19 300)' },
+          red:    { light: 'oklch(0.55 0.22 25)',  dark: 'oklch(0.70 0.19 25)' }
+        };
+        var p = presets[accent] || presets.zinc;
+        var c = dark ? p.dark : p.light;
+        var r = document.documentElement;
+        ['--primary','--ring','--sidebar-primary','--sidebar-ring'].forEach(function(v){ r.style.setProperty(v, c); });
+        // Set background immediately to prevent flash
+        r.style.backgroundColor = dark ? 'oklch(0.145 0 0)' : 'oklch(1 0 0)';
+      })();
+    </script>
+  </head>
+  <body class="bg-transparent">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
