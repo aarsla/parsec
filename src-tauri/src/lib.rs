@@ -1,3 +1,5 @@
+mod frontmost;
+mod history;
 mod hotkey;
 mod paster;
 mod recorder;
@@ -38,6 +40,9 @@ async fn stop_recording(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
+    // Capture frontmost app before any processing
+    let (app_name, window_title) = frontmost::get_frontmost_app();
+
     let wav_path = recorder::stop_recording(&state).map_err(|e| e.to_string())?;
 
     state.set_status(state::Status::Transcribing);
@@ -48,6 +53,20 @@ async fn stop_recording(
         .map_err(|e| e.to_string())?;
 
     if !text.is_empty() {
+        // Save to history
+        let entry = history::HistoryEntry {
+            id: uuid::Uuid::new_v4().to_string(),
+            text: text.clone(),
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as i64,
+            app_name,
+            window_title,
+            char_count: text.chars().count(),
+        };
+        history::add_entry(&app, entry);
+
         paster::paste_text(&text).map_err(|e| e.to_string())?;
     }
 
@@ -113,6 +132,21 @@ fn check_accessibility_permission() -> String {
     {
         "granted".to_string()
     }
+}
+
+#[tauri::command]
+fn get_history(app: tauri::AppHandle) -> Vec<history::HistoryEntry> {
+    history::get_entries(&app)
+}
+
+#[tauri::command]
+fn delete_history_entry(app: tauri::AppHandle, id: String) {
+    history::delete_entry(&app, &id);
+}
+
+#[tauri::command]
+fn clear_history(app: tauri::AppHandle) {
+    history::clear_entries(&app);
 }
 
 #[tauri::command]
@@ -237,6 +271,9 @@ pub fn run() {
             check_accessibility_permission,
             open_privacy_settings,
             set_dock_visible,
+            get_history,
+            delete_history_entry,
+            clear_history,
         ])
         .setup(|app| {
             // Create overlay window (hidden by default)

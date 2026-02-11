@@ -18,6 +18,7 @@ import {
   Play,
   RefreshCw,
   Download,
+  Clock,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -29,9 +30,10 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import History from "@/components/History";
 
 type PermissionStatus = "granted" | "denied" | "unknown" | "checking";
-type Section = "general" | "permissions" | "recording" | "output" | "updates" | "about";
+type Section = "general" | "permissions" | "recording" | "output" | "history" | "updates" | "about";
 type ThemeMode = "light" | "dark" | "system";
 type AccentColor = "zinc" | "orange" | "teal" | "green" | "blue" | "purple" | "red";
 type StartSound = "chirp" | "ping" | "blip" | "none";
@@ -606,6 +608,7 @@ export default function Settings() {
     { id: "permissions", label: "Permissions", icon: <Shield size={16} /> },
     { id: "recording", label: "Recording", icon: <Mic size={16} /> },
     { id: "output", label: "Output", icon: <ClipboardPaste size={16} /> },
+    { id: "history", label: "History", icon: <Clock size={16} /> },
     { id: "updates", label: "Updates", icon: <Download size={16} /> },
     { id: "about", label: "About", icon: <Info size={16} /> },
   ];
@@ -642,6 +645,17 @@ export default function Settings() {
       </div>
 
       {/* Content */}
+      {activeSection === "history" ? (
+        <div className="flex-1 flex flex-col min-h-0">
+          <div
+            className="h-8 shrink-0"
+            data-tauri-drag-region
+          />
+          <div className="flex-1 min-h-0">
+            <History />
+          </div>
+        </div>
+      ) : (
       <ScrollArea className="flex-1">
         <div
           className="h-8 shrink-0"
@@ -878,6 +892,7 @@ export default function Settings() {
           )}
         </div>
       </ScrollArea>
+      )}
     </div>
   );
 }
