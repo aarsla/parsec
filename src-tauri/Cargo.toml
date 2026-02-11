@@ -1,12 +1,12 @@
 [package]
-name = "parsec"
+name = "audioshift"
 version = "0.1.0"
-description = "Parsec - local voice to text transcription"
+description = "AudioShift - local voice to text transcription"
 authors = ["you"]
 edition = "2021"
 
 [lib]
-name = "parsec_lib"
+name = "audioshift_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

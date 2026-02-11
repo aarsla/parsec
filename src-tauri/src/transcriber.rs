@@ -15,17 +15,45 @@ const MODEL_FILES: &[(&str, bool)] = &[
     ("nemo128.onnx", false),
 ];
 
-fn model_dir() -> PathBuf {
+pub fn model_dir() -> PathBuf {
     let data_dir = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
     data_dir.join("com.aarsla.vtt").join("models").join("parakeet-tdt-0.6b-v3")
 }
 
-fn models_ready() -> bool {
+pub fn models_ready() -> bool {
     let dir = model_dir();
     // Check for the key renamed files (we rename int8 files to the names parakeet-rs expects)
     dir.join("encoder-model.onnx").exists()
         && dir.join("decoder_joint-model.onnx").exists()
         && dir.join("vocab.txt").exists()
+}
+
+pub fn model_disk_size() -> u64 {
+    let dir = model_dir();
+    if !dir.exists() {
+        return 0;
+    }
+    std::fs::read_dir(&dir)
+        .map(|entries| {
+            entries
+                .filter_map(|e| e.ok())
+                .filter_map(|e| e.metadata().ok().map(|m| m.len()))
+                .sum()
+        })
+        .unwrap_or(0)
+}
+
+pub async fn delete_model() -> Result<()> {
+    // Unload the model first
+    {
+        let mut model_lock = MODEL.lock();
+        *model_lock = None;
+    }
+    let dir = model_dir();
+    if dir.exists() {
+        tokio::fs::remove_dir_all(&dir).await?;
+    }
+    Ok(())
 }
 
 async fn download_file(url: &str, dest: &Path, app: &tauri::AppHandle, label: &str) -> Result<()> {

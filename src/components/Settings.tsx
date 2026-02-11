@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { load } from "@tauri-apps/plugin-store";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -22,6 +24,10 @@ import {
   Clock,
   Palette,
   Layers,
+  Box,
+  Trash2,
+  Loader2,
+  ExternalLink,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -36,7 +42,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import History from "@/components/History";
 
 type PermissionStatus = "granted" | "denied" | "unknown" | "checking";
-type Section = "general" | "appearance" | "permissions" | "recording" | "output" | "history" | "updates" | "about";
+type Section = "general" | "appearance" | "permissions" | "recording" | "output" | "history" | "model" | "updates" | "about";
 type ThemeMode = "light" | "dark" | "system";
 type AccentColor = "zinc" | "orange" | "teal" | "green" | "blue" | "purple" | "red";
 type StartSound = "chirp" | "ping" | "blip" | "none";
@@ -45,6 +51,22 @@ type OverlayPosition =
   | "top-left" | "top-center" | "top-right"
   | "center-left" | "center" | "center-right"
   | "bottom-left" | "bottom-center" | "bottom-right";
+
+interface ModelInfo {
+  ready: boolean;
+  path: string;
+  size_bytes: number;
+  name: string;
+  version: string;
+  quantization: string;
+}
+
+interface DownloadProgress {
+  file: string;
+  progress: number;
+  downloaded?: number;
+  total?: number;
+}
 
 const OVERLAY_THEMES: { id: OverlayTheme; label: string; desc: string }[] = [
   { id: "default", label: "Default", desc: "Waveform + controls" },
@@ -430,6 +452,9 @@ export default function Settings() {
   const [accentColor, setAccentColor] = useState<AccentColor>("zinc");
   const [overlayPosition, setOverlayPosition] = useState<OverlayPosition>("center");
   const [overlayTheme, setOverlayTheme] = useState<OverlayTheme>("default");
+  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
+  const [modelActionLoading, setModelActionLoading] = useState(false);
 
   useEffect(() => {
     invoke<string[]>("get_input_devices").then((devs) => {
@@ -439,6 +464,7 @@ export default function Settings() {
       }
     });
     invoke<string>("get_current_hotkey").then(setHotkey);
+    invoke<ModelInfo>("get_model_status").then(setModelInfo);
     checkPermissions();
     loadAppSettings();
   }, []);
@@ -473,6 +499,22 @@ export default function Settings() {
       u1.then((fn) => fn());
       u2.then((fn) => fn());
     };
+  }, []);
+
+  // Listen for model download progress events
+  useEffect(() => {
+    const unlisten = listen<DownloadProgress>("model-download-progress", (event) => {
+      const data = event.payload;
+      if (data.file === "complete") {
+        setDownloadProgress(null);
+        setModelActionLoading(false);
+        // Refresh model info after download completes
+        invoke<ModelInfo>("get_model_status").then(setModelInfo);
+      } else {
+        setDownloadProgress(data);
+      }
+    });
+    return () => { unlisten.then((fn) => fn()); };
   }, []);
 
   // Listen for system theme changes when in "system" mode
@@ -630,6 +672,36 @@ export default function Settings() {
   };
 
 
+  const handleDownloadModel = async () => {
+    setModelActionLoading(true);
+    try {
+      await invoke("download_model");
+    } catch (e) {
+      console.error("Failed to download model:", e);
+      setModelActionLoading(false);
+      setDownloadProgress(null);
+    }
+  };
+
+  const handleDeleteModel = async () => {
+    setModelActionLoading(true);
+    try {
+      await invoke("delete_model");
+      const info = await invoke<ModelInfo>("get_model_status");
+      setModelInfo(info);
+    } catch (e) {
+      console.error("Failed to delete model:", e);
+    }
+    setModelActionLoading(false);
+  };
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes === 0) return "0 B";
+    const units = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(i > 1 ? 1 : 0)} ${units[i]}`;
+  };
+
   const handleAutoUpdateChange = async (enabled: boolean) => {
     setAutoUpdate(enabled);
     try {
@@ -704,6 +776,7 @@ export default function Settings() {
     { id: "recording", label: "Recording", icon: <Mic size={16} /> },
     { id: "output", label: "Output", icon: <ClipboardPaste size={16} /> },
     { id: "history", label: "History", icon: <Clock size={16} /> },
+    { id: "model", label: "Model", icon: <Box size={16} /> },
     { id: "updates", label: "Updates", icon: <Download size={16} /> },
     { id: "about", label: "About", icon: <Info size={16} /> },
   ];
@@ -732,9 +805,27 @@ export default function Settings() {
             />
           ))}
         </nav>
+        {downloadProgress && (
+          <div className="px-3 pb-2">
+            <div className="px-3 py-2 rounded-lg bg-sidebar-accent/50">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Download size={12} className="text-primary animate-pulse shrink-0" />
+                <span className="text-[11px] text-foreground truncate">
+                  Downloading... {downloadProgress.progress}%
+                </span>
+              </div>
+              <div className="h-1 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-300"
+                  style={{ width: `${downloadProgress.progress}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
         <div className="px-3 pb-3">
           <p className="text-[11px] text-muted-foreground/50 px-3">
-            Parsec v0.1.0
+            AudioShift v0.1.0
           </p>
         </div>
       </div>
@@ -762,7 +853,7 @@ export default function Settings() {
               <SectionCard title="Startup & Dock" icon={<SettingsIcon size={14} />}>
                 <SettingRow
                   label="Launch at startup"
-                  description="Automatically start Parsec when you log in"
+                  description="Automatically start AudioShift when you log in"
                 >
                   <Switch
                     checked={autostart}
@@ -772,7 +863,7 @@ export default function Settings() {
                 <Separator />
                 <SettingRow
                   label="Show in Dock"
-                  description="Display Parsec icon in the Dock"
+                  description="Display AudioShift icon in the Dock"
                   note="Note: May require app restart to take effect."
                 >
                   <Switch
@@ -928,6 +1019,97 @@ export default function Settings() {
             </div>
           )}
 
+          {activeSection === "model" && modelInfo && (
+            <div className="space-y-4">
+              <SectionCard title="Speech Model" icon={<Box size={14} />}>
+                <SettingRow label="Model" description="Local transcription engine">
+                  <span className="text-sm text-muted-foreground font-mono">
+                    {modelInfo.name} {modelInfo.version}
+                  </span>
+                </SettingRow>
+                <Separator />
+                <SettingRow label="Quantization" description="Model precision format">
+                  <span className="text-sm text-muted-foreground font-mono">
+                    {modelInfo.quantization}
+                  </span>
+                </SettingRow>
+                <Separator />
+                <SettingRow label="Status" description="Whether model files are downloaded">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${modelInfo.ready ? "bg-emerald-500" : "bg-amber-500"}`} />
+                    <span className="text-sm text-muted-foreground">
+                      {modelInfo.ready ? "Ready" : "Not downloaded"}
+                    </span>
+                  </div>
+                </SettingRow>
+                {modelInfo.ready && (
+                  <>
+                    <Separator />
+                    <SettingRow label="Storage" description={modelInfo.path}>
+                      <span className="text-sm text-muted-foreground font-mono">
+                        {formatBytes(modelInfo.size_bytes)}
+                      </span>
+                    </SettingRow>
+                  </>
+                )}
+              </SectionCard>
+
+              {downloadProgress && (
+                <SectionCard title="Download Progress" icon={<Download size={14} />}>
+                  <div className="py-3 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground truncate mr-2">{downloadProgress.file}</span>
+                      <span className="text-foreground font-mono shrink-0">{downloadProgress.progress}%</span>
+                    </div>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-300"
+                        style={{ width: `${downloadProgress.progress}%` }}
+                      />
+                    </div>
+                    {downloadProgress.downloaded != null && downloadProgress.total != null && (
+                      <div className="text-[11px] text-muted-foreground">
+                        {formatBytes(downloadProgress.downloaded)} / {formatBytes(downloadProgress.total)}
+                      </div>
+                    )}
+                  </div>
+                </SectionCard>
+              )}
+
+              <SectionCard title="Actions" icon={<SettingsIcon size={14} />}>
+                <div className="flex items-center gap-2 py-3">
+                  <button
+                    onClick={handleDownloadModel}
+                    disabled={modelActionLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md
+                               bg-primary text-primary-foreground hover:bg-primary/90
+                               transition-colors disabled:opacity-50"
+                  >
+                    {modelActionLoading && downloadProgress ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      <Download size={12} />
+                    )}
+                    {modelInfo.ready ? "Re-download Model" : "Download Model"}
+                  </button>
+                  {modelInfo.ready && (
+                    <button
+                      onClick={handleDeleteModel}
+                      disabled={modelActionLoading}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md
+                                 bg-secondary border border-border text-muted-foreground
+                                 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30
+                                 transition-colors disabled:opacity-50"
+                    >
+                      <Trash2 size={12} />
+                      Delete Model
+                    </button>
+                  )}
+                </div>
+              </SectionCard>
+            </div>
+          )}
+
           {activeSection === "permissions" && (
             <div className="space-y-4">
               <SectionCard title="Permissions" icon={<Shield size={14} />}>
@@ -1024,7 +1206,7 @@ export default function Settings() {
 
           {activeSection === "about" && (
             <div className="space-y-4">
-              <SectionCard title="About Parsec" icon={<Info size={14} />}>
+              <SectionCard title="About AudioShift" icon={<Info size={14} />}>
                 <SettingRow label="Version" description="Current app version">
                   <span className="text-sm text-muted-foreground font-mono">
                     0.1.0
@@ -1039,7 +1221,30 @@ export default function Settings() {
                     Parakeet TDT v3
                   </span>
                 </SettingRow>
+                <Separator />
+                <SettingRow label="Website">
+                  <button
+                    onClick={() => openUrl("https://audioshift.io")}
+                    className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors"
+                  >
+                    audioshift.io
+                    <ExternalLink size={12} />
+                  </button>
+                </SettingRow>
+                <Separator />
+                <SettingRow label="Source Code">
+                  <button
+                    onClick={() => openUrl("https://github.com/aarsla/audioshift")}
+                    className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors"
+                  >
+                    GitHub
+                    <ExternalLink size={12} />
+                  </button>
+                </SettingRow>
               </SectionCard>
+              <p className="text-[11px] text-muted-foreground/50 text-center">
+                &copy; 2026 AudioShift
+              </p>
             </div>
           )}
         </div>

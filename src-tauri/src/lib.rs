@@ -212,6 +212,38 @@ fn macos_work_area_at_cursor() -> Option<WorkArea> {
     })
 }
 
+#[derive(serde::Serialize)]
+struct ModelInfo {
+    ready: bool,
+    path: String,
+    size_bytes: u64,
+    name: String,
+    version: String,
+    quantization: String,
+}
+
+#[tauri::command]
+fn get_model_status() -> ModelInfo {
+    ModelInfo {
+        ready: transcriber::models_ready(),
+        path: transcriber::model_dir().to_string_lossy().to_string(),
+        size_bytes: transcriber::model_disk_size(),
+        name: "Parakeet TDT".to_string(),
+        version: "0.6b v3".to_string(),
+        quantization: "int8".to_string(),
+    }
+}
+
+#[tauri::command]
+async fn download_model(app: tauri::AppHandle) -> Result<(), String> {
+    transcriber::ensure_model(&app).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn delete_model() -> Result<(), String> {
+    transcriber::delete_model().await.map_err(|e| e.to_string())
+}
+
 fn create_overlay_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     let existing = app.get_webview_window("overlay");
     if existing.is_some() {
@@ -219,7 +251,7 @@ fn create_overlay_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     }
 
     WebviewWindowBuilder::new(app, "overlay", WebviewUrl::App("/overlay".into()))
-        .title("Parsec Recording")
+        .title("AudioShift Recording")
         .inner_size(320.0, 96.0)
         .resizable(false)
         .decorations(false)
@@ -241,7 +273,7 @@ fn create_settings_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     }
 
     let mut builder = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("/settings".into()))
-        .title("Parsec")
+        .title("AudioShift")
         .min_inner_size(520.0, 400.0)
         .resizable(true)
         .background_color(Color(32, 32, 32, 255));
@@ -340,6 +372,9 @@ pub fn run() {
             get_history,
             delete_history_entry,
             clear_history,
+            get_model_status,
+            download_model,
+            delete_model,
         ])
         .setup(|app| {
             // Create overlay window (hidden by default)
@@ -356,7 +391,7 @@ pub fn run() {
                 MenuItemBuilder::with_id("settings", "Settings").build(app)?;
             let updates_item =
                 MenuItemBuilder::with_id("updates", "Check for Updates...").build(app)?;
-            let quit_item = MenuItemBuilder::with_id("quit", "Quit Parsec").build(app)?;
+            let quit_item = MenuItemBuilder::with_id("quit", "Quit AudioShift").build(app)?;
             let menu = MenuBuilder::new(app)
                 .item(&status_item)
                 .separator()
@@ -371,7 +406,7 @@ pub fn run() {
                 .icon(Image::from_bytes(TRAY_ICON_NORMAL).expect("failed to load tray icon"))
                 .icon_as_template(true)
                 .menu(&menu)
-                .tooltip("Parsec")
+                .tooltip("AudioShift")
                 .on_menu_event(move |app, event| match event.id().as_ref() {
                     "settings" => {
                         let _ = create_settings_window(app);

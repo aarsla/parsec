@@ -1,4 +1,4 @@
-# Parsec
+# AudioShift
 
 Local voice-to-text transcription desktop app. Tauri 2 + React 19 + Rust.
 
