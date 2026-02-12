@@ -24,6 +24,16 @@ fn get_input_devices() -> Vec<String> {
 }
 
 #[tauri::command]
+async fn start_monitor(app: tauri::AppHandle, device: Option<String>) -> Result<(), String> {
+    recorder::start_monitor(&app, device.as_deref()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn stop_monitor() {
+    recorder::stop_monitor();
+}
+
+#[tauri::command]
 fn get_app_status(state: tauri::State<'_, AppState>) -> String {
     state.status().to_string()
 }
@@ -33,13 +43,20 @@ async fn start_recording(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
-    recorder::start_recording(&app, &state).map_err(|e| e.to_string())
+    let device_name = app
+        .store("settings.json")
+        .ok()
+        .and_then(|s| s.get("inputDevice"))
+        .and_then(|v| v.as_str().map(String::from))
+        .filter(|name| name != "default");
+    recorder::start_recording(&app, &state, device_name.as_deref()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn stop_recording(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
+    auto_paste: bool,
 ) -> Result<String, String> {
     // Capture frontmost app before any processing
     let (app_name, window_title) = frontmost::get_frontmost_app();
@@ -68,7 +85,11 @@ async fn stop_recording(
         };
         history::add_entry(&app, entry);
 
-        paster::paste_text(&text).map_err(|e| e.to_string())?;
+        if auto_paste {
+            paster::paste_text(&text).map_err(|e| e.to_string())?;
+        } else {
+            paster::copy_to_clipboard(&text).map_err(|e| e.to_string())?;
+        }
     }
 
     state.set_status(state::Status::Idle);
@@ -477,6 +498,8 @@ pub fn run() {
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
             get_input_devices,
+            start_monitor,
+            stop_monitor,
             get_app_status,
             start_recording,
             stop_recording,

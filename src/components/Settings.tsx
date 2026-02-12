@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -40,6 +40,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import History from "@/components/History";
+import LevelMeter from "@/components/LevelMeter";
 
 type PermissionStatus = "granted" | "denied" | "unknown" | "checking";
 type Section = "general" | "appearance" | "permissions" | "recording" | "output" | "history" | "model" | "updates" | "about";
@@ -456,15 +457,27 @@ export default function Settings() {
   const [accentColor, setAccentColor] = useState<AccentColor>("zinc");
   const [overlayPosition, setOverlayPosition] = useState<OverlayPosition>("center");
   const [overlayTheme, setOverlayTheme] = useState<OverlayTheme>("default");
+  const [testingMic, setTestingMic] = useState(false);
   const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
   const [modelActionLoading, setModelActionLoading] = useState(false);
+  const [monitorLevel, setMonitorLevel] = useState(0);
+  const monitorSmoothed = useRef(0);
+  const monitorRaf = useRef(0);
 
   useEffect(() => {
-    invoke<string[]>("get_input_devices").then((devs) => {
+    invoke<string[]>("get_input_devices").then(async (devs) => {
       setDevices(devs);
-      if (devs.length > 0 && !selectedDevice) {
-        setSelectedDevice(devs[0]);
+      try {
+        const store = await load("settings.json");
+        const saved = await store.get<string>("inputDevice");
+        if (saved && (saved === "default" || devs.includes(saved))) {
+          setSelectedDevice(saved);
+        } else {
+          setSelectedDevice("default");
+        }
+      } catch {
+        setSelectedDevice("default");
       }
     });
     invoke<string>("get_current_hotkey").then(setHotkey);
@@ -530,6 +543,38 @@ export default function Settings() {
     return () => { unlisten.then((fn) => fn()); };
   }, []);
 
+  // Manage monitor stream + listen for amplitude events
+  useEffect(() => {
+    if (!testingMic || !selectedDevice) return;
+    let cancelled = false;
+    monitorSmoothed.current = 0;
+    setMonitorLevel(0);
+
+    invoke("start_monitor", { device: selectedDevice === "default" ? null : selectedDevice }).catch((e) =>
+      console.error("start_monitor failed:", e)
+    );
+
+    const unlisten = listen<number>("monitor-amplitude", (event) => {
+      const raw = Math.min(event.payload * 50, 1);
+      monitorSmoothed.current += (raw - monitorSmoothed.current) * 0.3;
+      if (!monitorRaf.current && !cancelled) {
+        monitorRaf.current = requestAnimationFrame(() => {
+          monitorRaf.current = 0;
+          if (!cancelled) setMonitorLevel(monitorSmoothed.current);
+        });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(monitorRaf.current);
+      monitorRaf.current = 0;
+      invoke("stop_monitor");
+      unlisten.then((fn) => fn());
+      setMonitorLevel(0);
+    };
+  }, [testingMic, selectedDevice]);
+
   // Listen for system theme changes when in "system" mode
   useEffect(() => {
     if (themeMode !== "system") return;
@@ -584,6 +629,11 @@ export default function Settings() {
         localStorage.setItem("overlayTheme", savedOverlayTheme);
       }
 
+
+      const savedPasteMode = await store.get<"auto" | "clipboard">("pasteMode");
+      if (savedPasteMode) {
+        setPasteMode(savedPasteMode);
+      }
 
       const savedAutoUpdate = await store.get<boolean>("autoUpdate");
       if (savedAutoUpdate !== null && savedAutoUpdate !== undefined) {
@@ -824,7 +874,7 @@ export default function Settings() {
               icon={item.icon}
               label={item.label}
               active={activeSection === item.id}
-              onClick={() => setActiveSection(item.id)}
+              onClick={() => { setActiveSection(item.id); setTestingMic(false); }}
             />
           ))}
         </nav>
@@ -1186,12 +1236,22 @@ export default function Settings() {
                 >
                   <Select
                     value={selectedDevice}
-                    onValueChange={setSelectedDevice}
+                    onValueChange={async (device) => {
+                      setSelectedDevice(device);
+                      setTestingMic(false);
+                      try {
+                        const store = await load("settings.json");
+                        await store.set("inputDevice", device);
+                      } catch (e) {
+                        console.error("Failed to save input device:", e);
+                      }
+                    }}
                   >
                     <SelectTrigger className="w-72">
                       <SelectValue placeholder="Select device" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="default">System Default</SelectItem>
                       {devices.map((d) => (
                         <SelectItem key={d} value={d}>
                           {d}
@@ -1200,6 +1260,26 @@ export default function Settings() {
                     </SelectContent>
                   </Select>
                 </SettingRow>
+              </SectionCard>
+
+              <SectionCard title="Test" icon={<Mic size={14} />}>
+                <div className="flex items-center gap-3 py-3">
+                  <button
+                    onClick={() => setTestingMic((v) => !v)}
+                    className={`shrink-0 px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                      testingMic
+                        ? "bg-primary/15 border-primary text-primary"
+                        : "bg-secondary border-border text-muted-foreground hover:border-primary/40"
+                    }`}
+                  >
+                    {testingMic ? "Stop Test" : "Test Microphone"}
+                  </button>
+                  {testingMic && (
+                    <div className="flex-1">
+                      <LevelMeter level={monitorLevel} />
+                    </div>
+                  )}
+                </div>
               </SectionCard>
 
             </div>
@@ -1222,9 +1302,16 @@ export default function Settings() {
                 >
                   <Switch
                     checked={pasteMode === "auto"}
-                    onCheckedChange={(checked) =>
-                      setPasteMode(checked ? "auto" : "clipboard")
-                    }
+                    onCheckedChange={async (checked) => {
+                      const mode = checked ? "auto" : "clipboard";
+                      setPasteMode(mode);
+                      try {
+                        const store = await load("settings.json");
+                        await store.set("pasteMode", mode);
+                      } catch (e) {
+                        console.error("Failed to save paste mode:", e);
+                      }
+                    }}
                   />
                 </SettingRow>
               </SectionCard>

@@ -15,6 +15,7 @@ unsafe impl Send for SendStream {}
 unsafe impl Sync for SendStream {}
 
 static ACTIVE_STREAM: parking_lot::Mutex<Option<SendStream>> = parking_lot::Mutex::new(None);
+static MONITOR_STREAM: parking_lot::Mutex<Option<SendStream>> = parking_lot::Mutex::new(None);
 
 pub fn list_input_devices() -> Vec<String> {
     let host = cpal::default_host();
@@ -23,14 +24,21 @@ pub fn list_input_devices() -> Vec<String> {
         .unwrap_or_default()
 }
 
-pub fn start_recording(app: &tauri::AppHandle, state: &AppState) -> Result<()> {
+fn find_device_by_name(host: &cpal::Host, name: &str) -> Option<cpal::Device> {
+    host.input_devices()
+        .ok()?
+        .find(|d| d.name().ok().as_deref() == Some(name))
+}
+
+pub fn start_recording(app: &tauri::AppHandle, state: &AppState, device_name: Option<&str>) -> Result<()> {
     if state.status() == Status::Recording {
         anyhow::bail!("Already recording");
     }
 
     let host = cpal::default_host();
-    let device = host
-        .default_input_device()
+    let device = device_name
+        .and_then(|name| find_device_by_name(&host, name))
+        .or_else(|| host.default_input_device())
         .context("No input device available")?;
 
     let config = cpal::StreamConfig {
@@ -93,6 +101,58 @@ pub fn stop_recording(state: &AppState) -> Result<String> {
     writer.finalize()?;
 
     Ok(wav_path.to_string_lossy().to_string())
+}
+
+pub fn start_monitor(app: &tauri::AppHandle, device_name: Option<&str>) -> Result<()> {
+    // Stop any existing monitor first
+    let _ = MONITOR_STREAM.lock().take();
+
+    let host = cpal::default_host();
+    let device = match device_name {
+        Some(name) => find_device_by_name(&host, name)
+            .context(format!("Input device '{}' not found", name))?,
+        None => host.default_input_device()
+            .context("No default input device available")?,
+    };
+
+    let config = cpal::StreamConfig {
+        channels: 1,
+        sample_rate: cpal::SampleRate(SAMPLE_RATE),
+        buffer_size: cpal::BufferSize::Default,
+    };
+
+    let app_handle = app.clone();
+    let last_emit = Arc::new(parking_lot::Mutex::new(std::time::Instant::now()));
+
+    let stream = device.build_input_stream(
+        &config,
+        move |data: &[f32], _: &cpal::InputCallbackInfo| {
+            if data.is_empty() {
+                return;
+            }
+            // Throttle to ~20 emits/sec (50ms interval)
+            let mut last = last_emit.lock();
+            let now = std::time::Instant::now();
+            if now.duration_since(*last).as_millis() < 50 {
+                return;
+            }
+            *last = now;
+            let amplitude: f32 = data.iter().map(|s| s.abs()).sum::<f32>() / data.len() as f32;
+            let _ = app_handle.emit("monitor-amplitude", amplitude);
+        },
+        |err| {
+            eprintln!("Monitor stream error: {}", err);
+        },
+        None,
+    )?;
+
+    stream.play()?;
+    *MONITOR_STREAM.lock() = Some(SendStream(stream));
+    Ok(())
+}
+
+pub fn stop_monitor() {
+    let _ = MONITOR_STREAM.lock().take();
 }
 
 pub fn cancel_recording(state: &AppState) -> Result<()> {

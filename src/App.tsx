@@ -97,7 +97,9 @@ export default function App() {
         }
       } else if (event.payload === "stop") {
         try {
-          await invoke("stop_recording");
+          const store = await load("settings.json");
+          const pasteMode = await store.get<string>("pasteMode") ?? "auto";
+          await invoke("stop_recording", { autoPaste: pasteMode === "auto" });
         } catch (e) {
           console.error("Failed to stop recording:", e);
         }
