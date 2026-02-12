@@ -4,6 +4,8 @@ Local voice-to-text transcription for your desktop. Press a shortcut, speak, and
 
 No accounts. No subscriptions. No cloud.
 
+<img src="assets/audioshift.png" alt="AudioShift" width="100%">
+
 **[Download](https://github.com/aarsla/audioshift/releases)** | **[Website](https://audioshift.io)**
 
 ## Features
