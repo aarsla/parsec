@@ -1242,6 +1242,26 @@ export default function Settings() {
                   </button>
                 </SettingRow>
               </SectionCard>
+
+              <SectionCard title="Setup" icon={<SettingsIcon size={14} />}>
+                <SettingRow
+                  label="Onboarding"
+                  description="Run the initial setup wizard again"
+                >
+                  <button
+                    onClick={async () => {
+                      const { load } = await import("@tauri-apps/plugin-store");
+                      const store = await load("settings.json");
+                      await store.delete("onboardingCompleted");
+                      invoke("show_onboarding");
+                    }}
+                    className="px-2.5 py-1 text-xs rounded-md bg-secondary border border-border
+                               hover:bg-accent text-muted-foreground transition-colors"
+                  >
+                    Redo Setup
+                  </button>
+                </SettingRow>
+              </SectionCard>
               <p className="text-[11px] text-muted-foreground/50 text-center">
                 &copy; 2026 AudioShift
               </p>

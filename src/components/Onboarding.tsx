@@ -166,7 +166,9 @@ export default function Onboarding() {
   };
 
   const closeWindow = () => {
-    getCurrentWebviewWindow().close();
+    invoke("complete_onboarding").finally(() => {
+      getCurrentWebviewWindow().close();
+    });
   };
 
   const canGoNext = () => {

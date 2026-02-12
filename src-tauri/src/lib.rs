@@ -434,11 +434,32 @@ fn update_tray_for_status(app: &tauri::AppHandle, status: Status) {
     }
 }
 
-fn onboarding_needed() -> bool {
+fn onboarding_needed(app: &tauri::AppHandle) -> bool {
+    let store = app.store("settings.json").ok();
+    let completed = store
+        .as_ref()
+        .and_then(|s| s.get("onboardingCompleted"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if completed {
+        return false;
+    }
     let model = transcriber::models_ready();
     let mic = check_microphone_permission() == "granted";
     let a11y = check_accessibility_permission() == "granted";
     !model || !mic || !a11y
+}
+
+#[tauri::command]
+fn complete_onboarding(app: tauri::AppHandle) {
+    if let Ok(store) = app.store("settings.json") {
+        let _ = store.set("onboardingCompleted", serde_json::json!(true));
+    }
+}
+
+#[tauri::command]
+fn show_onboarding(app: tauri::AppHandle) {
+    let _ = create_onboarding_window(&app);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -476,6 +497,8 @@ pub fn run() {
             download_model,
             delete_model,
             check_onboarding_needed,
+            complete_onboarding,
+            show_onboarding,
             is_download_in_progress,
         ])
         .setup(|app| {
@@ -560,7 +583,7 @@ pub fn run() {
             });
 
             // Check if onboarding is needed
-            if onboarding_needed() {
+            if onboarding_needed(&app.handle()) {
                 let _ = create_onboarding_window(&app.handle());
                 // Download is triggered by the onboarding frontend after its
                 // event listener is ready — no background spawn here.
