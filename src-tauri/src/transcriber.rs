@@ -1,5 +1,7 @@
 use anyhow::{Context, Result};
-use parakeet_rs::{ParakeetTDT, TimestampMode, Transcriber};
+use parakeet_rs::{ExecutionConfig, ParakeetTDT, TimestampMode, Transcriber};
+#[cfg(windows)]
+use parakeet_rs::ExecutionProvider;
 use parking_lot::Mutex;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -211,6 +213,20 @@ pub async fn ensure_model(app: &tauri::AppHandle) -> Result<()> {
     result
 }
 
+fn default_execution_config() -> Option<ExecutionConfig> {
+    #[cfg(windows)]
+    {
+        Some(
+            ExecutionConfig::new()
+                .with_execution_provider(ExecutionProvider::DirectML),
+        )
+    }
+    #[cfg(not(windows))]
+    {
+        None
+    }
+}
+
 fn load_model() -> Result<()> {
     let mut model_lock = MODEL.lock();
     if model_lock.is_some() {
@@ -218,7 +234,11 @@ fn load_model() -> Result<()> {
     }
 
     let dir = model_dir();
-    let parakeet = ParakeetTDT::from_pretrained(&dir, None)
+    let parakeet = ParakeetTDT::from_pretrained(&dir, default_execution_config())
+        .or_else(|_| {
+            // GPU failed, fall back to CPU
+            ParakeetTDT::from_pretrained(&dir, None)
+        })
         .context("Failed to load Parakeet TDT model")?;
     *model_lock = Some(parakeet);
 
