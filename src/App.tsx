@@ -40,7 +40,7 @@ async function initTheme() {
   try {
     const store = await load("settings.json");
     const mode = await store.get<string>("themeMode");
-    const accent = await store.get<string>("accentColor") || "zinc";
+    const accent = await store.get<string>("accentColor") || "orange";
 
     const root = document.documentElement;
     let isDark: boolean;
@@ -60,7 +60,7 @@ async function initTheme() {
     // Store not available yet, fall back to system
     const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     document.documentElement.classList.toggle("dark", isDark);
-    applyAccentVars("zinc", isDark);
+    applyAccentVars("orange", isDark);
   }
 }
 

@@ -123,7 +123,7 @@ function applyTheme(mode: ThemeMode) {
     root.classList.toggle("dark", prefersDark);
   }
   // Re-apply accent when theme changes (light/dark use different values)
-  const accent = (localStorage.getItem("accentColor") || "zinc") as AccentColor;
+  const accent = (localStorage.getItem("accentColor") || "orange") as AccentColor;
   applyAccentVars(accent);
 }
 
@@ -454,7 +454,7 @@ export default function Settings() {
   const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "downloading" | "up-to-date" | "error">("idle");
   const [updateError, setUpdateError] = useState("");
   const [themeMode, setThemeMode] = useState<ThemeMode>("system");
-  const [accentColor, setAccentColor] = useState<AccentColor>("zinc");
+  const [accentColor, setAccentColor] = useState<AccentColor>("orange");
   const [overlayPosition, setOverlayPosition] = useState<OverlayPosition>("center");
   const [overlayTheme, setOverlayTheme] = useState<OverlayTheme>("default");
   const [testingMic, setTestingMic] = useState(false);
@@ -598,7 +598,7 @@ export default function Settings() {
         applyTheme("system");
       }
 
-      const accent = savedAccent || "zinc";
+      const accent = savedAccent || "orange";
       setAccentColor(accent);
       applyAccent(accent);
       localStorage.setItem("accentColor", accent);
@@ -898,7 +898,7 @@ export default function Settings() {
         )}
         <div className="px-3 pb-3">
           <p className="text-[11px] text-muted-foreground/50 px-3">
-            AudioShift v0.1.0
+            AudioShift v0.1.1
           </p>
         </div>
       </div>
@@ -1323,7 +1323,7 @@ export default function Settings() {
               <SectionCard title="About AudioShift" icon={<Info size={14} />}>
                 <SettingRow label="Version" description="Current app version">
                   <span className="text-sm text-muted-foreground font-mono">
-                    0.1.0
+                    0.1.1
                   </span>
                 </SettingRow>
                 <Separator />
