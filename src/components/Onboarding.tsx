@@ -58,6 +58,8 @@ export default function Onboarding() {
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [hotkey, setHotkey] = useState("CmdOrCtrl+Shift+Space");
+  const [testState, setTestState] = useState<"idle" | "recording" | "transcribing">("idle");
+  const [testResult, setTestResult] = useState("");
   const downloadStarted = useRef(false);
 
   // 1. Listen for download progress — set up FIRST so no events are missed
@@ -127,6 +129,34 @@ export default function Onboarding() {
 
   const openPrivacySettings = (pane: string) => {
     invoke("open_privacy_settings", { pane });
+  };
+
+  // Listen for status changes on the Ready step to track test recording
+  useEffect(() => {
+    if (step !== 4) return;
+    const unlisten = listen<string>("status-changed", (event) => {
+      const s = event.payload;
+      if (s === "recording") setTestState("recording");
+      else if (s === "transcribing") setTestState("transcribing");
+      else if (s === "idle" && (testState === "recording" || testState === "transcribing")) {
+        setTestState("idle");
+        // Fetch the latest transcription from history
+        invoke<Array<{ text: string }>>("get_history").then((entries) => {
+          if (entries.length > 0) setTestResult(entries[0].text);
+        });
+      }
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, [step, testState]);
+
+  const startTestRecording = async () => {
+    setTestResult("");
+    try {
+      await invoke("start_recording");
+      setTestState("recording");
+    } catch (e) {
+      setTestResult(`Error: ${e}`);
+    }
   };
 
   const closeWindow = () => {
@@ -329,8 +359,39 @@ export default function Onboarding() {
               <div>
                 <h2 className="text-2xl font-semibold tracking-tight">You're all set!</h2>
                 <p className="text-sm text-muted-foreground mt-2">
-                  AudioShift is ready to use.
+                  Try it out — click the button below and say something.
                 </p>
+              </div>
+
+              <div className="space-y-3 max-w-xs mx-auto">
+                {testState === "idle" && !testResult && (
+                  <button
+                    onClick={startTestRecording}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm rounded-lg
+                               bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    <Mic size={16} /> Try It
+                  </button>
+                )}
+
+                {testState === "recording" && (
+                  <div className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm text-red-500">
+                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    Listening... press <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-xs text-foreground">{shortcutDisplay(hotkey)}</kbd> to stop
+                  </div>
+                )}
+
+                {testState === "transcribing" && (
+                  <div className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm text-muted-foreground">
+                    <Loader2 size={16} className="animate-spin" /> Transcribing...
+                  </div>
+                )}
+
+                {testResult && (
+                  <div className="p-3 rounded-xl bg-card border border-border text-left">
+                    <p className="text-sm text-foreground">{testResult}</p>
+                  </div>
+                )}
               </div>
 
               <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-card border border-border mx-auto">
@@ -338,7 +399,7 @@ export default function Onboarding() {
                 <kbd className="px-2.5 py-1 rounded-md bg-muted text-sm font-mono font-medium text-foreground">
                   {shortcutDisplay(hotkey)}
                 </kbd>
-                <span className="text-xs text-muted-foreground">to start recording</span>
+                <span className="text-xs text-muted-foreground">anywhere to record</span>
               </div>
 
               <div className="space-y-1.5 text-left max-w-xs mx-auto">
@@ -347,11 +408,7 @@ export default function Onboarding() {
                 <StatusRow label="Accessibility" ok={status.accessibility_granted} />
               </div>
 
-              <p className="text-xs text-muted-foreground/70 max-w-xs mx-auto">
-                AudioShift lives in your menu bar. Click the tray icon to access Settings, check for updates, or quit.
-              </p>
-
-              <div className="pt-2">
+              <div className="pt-1">
                 <button
                   onClick={closeWindow}
                   className="inline-flex items-center gap-1.5 px-6 py-2.5 text-sm rounded-lg

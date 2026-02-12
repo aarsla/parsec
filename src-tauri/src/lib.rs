@@ -103,22 +103,17 @@ fn set_hotkey(app: tauri::AppHandle, state: tauri::State<'_, AppState>, shortcut
 fn check_microphone_permission() -> String {
     #[cfg(target_os = "macos")]
     {
-        use std::process::Command;
-        // Query macOS AVFoundation authorization status for microphone (media type "soun")
-        // Returns: 0 = not determined, 1 = denied/restricted, 2 = denied, 3 = authorized
-        let output = Command::new("osascript")
-            .args(["-e", "use framework \"AVFoundation\"\nreturn (current application's AVCaptureDevice's authorizationStatusForMediaType:(current application's AVMediaTypeAudio)) as integer"])
-            .output();
-        match output {
-            Ok(o) => {
-                let status = String::from_utf8_lossy(&o.stdout).trim().to_string();
-                match status.as_str() {
-                    "3" => "granted".to_string(),
-                    "0" => "not_determined".to_string(),
-                    _ => "denied".to_string(),
-                }
-            }
-            Err(_) => "unknown".to_string(),
+        use objc2::class;
+        use objc2::msg_send;
+        use objc2_foundation::NSString;
+        let media_type = NSString::from_str("soun"); // AVMediaTypeAudio
+        let status: i32 = unsafe {
+            msg_send![class!(AVCaptureDevice), authorizationStatusForMediaType: &*media_type]
+        };
+        match status {
+            3 => "granted".to_string(),
+            0 => "not_determined".to_string(),
+            _ => "denied".to_string(),
         }
     }
     #[cfg(not(target_os = "macos"))]
@@ -131,11 +126,7 @@ fn check_microphone_permission() -> String {
 fn check_accessibility_permission() -> String {
     #[cfg(target_os = "macos")]
     {
-        // AXIsProcessTrusted() checks accessibility without triggering a prompt
-        extern "C" {
-            fn AXIsProcessTrusted() -> bool;
-        }
-        if unsafe { AXIsProcessTrusted() } {
+        if macos_accessibility_client::accessibility::application_is_trusted() {
             "granted".to_string()
         } else {
             "denied".to_string()
@@ -419,7 +410,7 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
-            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            tauri_plugin_autostart::MacosLauncher::AppleScript,
             None,
         ))
         .plugin(tauri_plugin_updater::Builder::new().build())
