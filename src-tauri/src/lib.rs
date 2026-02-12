@@ -617,6 +617,7 @@ fn update_tray_for_status(app: &tauri::AppHandle, status: Status) {
         };
         if let Ok(icon) = Image::from_bytes(icon_bytes) {
             let _ = tray.set_icon(Some(icon));
+            let _ = tray.set_icon_as_template(true);
         }
     }
 
