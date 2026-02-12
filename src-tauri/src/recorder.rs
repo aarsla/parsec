@@ -78,7 +78,7 @@ pub fn stop_recording(state: &AppState) -> Result<String> {
     }
 
     let temp_dir = std::env::temp_dir();
-    let wav_path = temp_dir.join("vtt_recording.wav");
+    let wav_path = temp_dir.join("audioshift_recording.wav");
     let spec = hound::WavSpec {
         channels: 1,
         sample_rate: SAMPLE_RATE,

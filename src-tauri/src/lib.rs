@@ -589,8 +589,19 @@ pub fn run() {
                 // event listener is ready — no background spawn here.
             }
 
-            // Register global hotkey
-            hotkey::register_default_hotkey(app)?;
+            // Register global hotkey (restore saved or use default)
+            let saved_hotkey = app
+                .store("settings.json")
+                .ok()
+                .and_then(|s| s.get("hotkey"))
+                .and_then(|v| v.as_str().map(String::from));
+
+            if let Some(ref key) = saved_hotkey {
+                hotkey::update_hotkey(&app.handle(), key)?;
+                app.state::<AppState>().set_hotkey(key.clone());
+            } else {
+                hotkey::register_default_hotkey(app)?;
+            }
 
             Ok(())
         })

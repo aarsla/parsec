@@ -22,7 +22,7 @@ const APPROX_DOWNLOAD_BYTES: u64 = 680_000_000;
 
 pub fn model_dir() -> PathBuf {
     let data_dir = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
-    data_dir.join("com.aarsla.vtt").join("models").join("parakeet-tdt-0.6b-v3")
+    data_dir.join("com.aarsla.audioshift").join("models").join("parakeet-tdt-0.6b-v3")
 }
 
 pub fn models_ready() -> bool {

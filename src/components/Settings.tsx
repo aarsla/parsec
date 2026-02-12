@@ -447,7 +447,7 @@ export default function Settings() {
   const [startSound, setStartSound] = useState<StartSound>("chirp");
   const [autoUpdate, setAutoUpdate] = useState(true);
   const [lastChecked, setLastChecked] = useState<string>("");
-  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "downloading" | "up-to-date">("idle");
+  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "downloading" | "up-to-date" | "error">("idle");
   const [themeMode, setThemeMode] = useState<ThemeMode>("system");
   const [accentColor, setAccentColor] = useState<AccentColor>("zinc");
   const [overlayPosition, setOverlayPosition] = useState<OverlayPosition>("center");
@@ -612,6 +612,8 @@ export default function Settings() {
     try {
       await invoke("set_hotkey", { shortcut });
       setHotkey(shortcut);
+      const store = await load("settings.json");
+      await store.set("hotkey", shortcut);
     } catch (e) {
       console.error("Failed to set hotkey:", e);
     }
@@ -746,11 +748,10 @@ export default function Settings() {
         }
       } else {
         setUpdateStatus("up-to-date");
-        setTimeout(() => setUpdateStatus("idle"), 3000);
       }
     } catch (e) {
       console.error("Update check failed:", e);
-      setUpdateStatus("idle");
+      setUpdateStatus("error");
     }
   };
 
@@ -987,33 +988,48 @@ export default function Settings() {
                 <SettingRow
                   label="Automatic Updates"
                   description="Check for updates automatically once per hour"
-                  note={lastChecked ? `Last checked: ${lastChecked}` : undefined}
                 >
                   <Switch
                     checked={autoUpdate}
                     onCheckedChange={handleAutoUpdateChange}
                   />
                 </SettingRow>
-                <div className="flex items-center gap-2 py-3">
-                  <button
-                    onClick={checkForUpdates}
-                    disabled={updateStatus === "checking" || updateStatus === "downloading"}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md
-                               bg-primary text-primary-foreground hover:bg-primary/90
-                               transition-colors disabled:opacity-50"
-                  >
-                    {updateStatus === "checking" ? (
-                      <RefreshCw size={12} className="animate-spin" />
-                    ) : updateStatus === "downloading" ? (
-                      <Download size={12} className="animate-pulse" />
-                    ) : (
-                      <RefreshCw size={12} />
-                    )}
-                    {updateStatus === "checking" ? "Checking..." :
-                     updateStatus === "downloading" ? "Installing..." :
-                     updateStatus === "up-to-date" ? "Up to date" :
-                     "Check for Updates"}
-                  </button>
+                <div className="flex flex-col gap-2 py-3">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={checkForUpdates}
+                      disabled={updateStatus === "checking" || updateStatus === "downloading"}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md
+                                 bg-primary text-primary-foreground hover:bg-primary/90
+                                 transition-colors disabled:opacity-50"
+                    >
+                      {updateStatus === "checking" ? (
+                        <RefreshCw size={12} className="animate-spin" />
+                      ) : updateStatus === "downloading" ? (
+                        <Download size={12} className="animate-pulse" />
+                      ) : (
+                        <RefreshCw size={12} />
+                      )}
+                      {updateStatus === "checking" ? "Checking..." :
+                       updateStatus === "downloading" ? "Installing..." :
+                       "Check for Updates"}
+                    </button>
+                  </div>
+                  {updateStatus === "up-to-date" && (
+                    <p className="text-xs text-muted-foreground">
+                      You're on the latest version.{lastChecked && ` Last checked: ${lastChecked}`}
+                    </p>
+                  )}
+                  {updateStatus === "error" && (
+                    <p className="text-xs text-destructive">
+                      Update check failed. Check your internet connection and try again.
+                    </p>
+                  )}
+                  {updateStatus === "idle" && lastChecked && (
+                    <p className="text-xs text-muted-foreground">
+                      Last checked: {lastChecked}
+                    </p>
+                  )}
                 </div>
               </SectionCard>
             </div>
