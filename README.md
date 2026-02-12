@@ -25,9 +25,8 @@ AudioShift processes everything locally. Zero network calls during transcription
 
 | Platform | Version | Architecture |
 |----------|---------|-------------|
-| macOS | 12+ | Apple Silicon, x86_64 |
+| macOS | 12+ | Apple Silicon |
 | Windows | 10+ | x86_64 |
-| Linux | Ubuntu 22.04+ | x86_64 |
 
 ## Installation
 
