@@ -76,8 +76,15 @@ pub fn start_recording(app: &tauri::AppHandle, state: &AppState, device_name: Op
     Ok(())
 }
 
+fn pause_and_drop_stream(stream: Option<SendStream>) {
+    if let Some(SendStream(stream)) = stream {
+        let _ = stream.pause();
+        drop(stream);
+    }
+}
+
 pub fn stop_recording(state: &AppState) -> Result<String> {
-    let _ = ACTIVE_STREAM.lock().take();
+    pause_and_drop_stream(ACTIVE_STREAM.lock().take());
 
     let samples = state.audio_buffer.lock().clone();
     if samples.is_empty() {
@@ -105,7 +112,7 @@ pub fn stop_recording(state: &AppState) -> Result<String> {
 
 pub fn start_monitor(app: &tauri::AppHandle, device_name: Option<&str>) -> Result<()> {
     // Stop any existing monitor first
-    let _ = MONITOR_STREAM.lock().take();
+    pause_and_drop_stream(MONITOR_STREAM.lock().take());
 
     let host = cpal::default_host();
     let device = match device_name {
@@ -152,11 +159,11 @@ pub fn start_monitor(app: &tauri::AppHandle, device_name: Option<&str>) -> Resul
 }
 
 pub fn stop_monitor() {
-    let _ = MONITOR_STREAM.lock().take();
+    pause_and_drop_stream(MONITOR_STREAM.lock().take());
 }
 
 pub fn cancel_recording(state: &AppState) -> Result<()> {
-    let _ = ACTIVE_STREAM.lock().take();
+    pause_and_drop_stream(ACTIVE_STREAM.lock().take());
     state.audio_buffer.lock().clear();
     state.set_status(Status::Idle);
     Ok(())
