@@ -125,23 +125,12 @@ fn request_microphone_permission() {
     {
         let status = check_microphone_permission();
         if status == "not_determined" {
-            // First time: trigger the native macOS mic permission prompt
-            use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-            let host = cpal::default_host();
-            if let Some(device) = host.default_input_device() {
-                if let Ok(config) = device.default_input_config() {
-                    if let Ok(stream) = device.build_input_stream(
-                        &config.into(),
-                        |_data: &[f32], _info: &cpal::InputCallbackInfo| {},
-                        |_err| {},
-                        None,
-                    ) {
-                        let _ = stream.play();
-                        std::thread::sleep(std::time::Duration::from_millis(200));
-                    }
-                }
+            // First time: show the native macOS permission prompt
+            extern "C" {
+                fn request_mic_access();
             }
-        } else {
+            unsafe { request_mic_access(); }
+        } else if status != "granted" {
             // Already denied/toggled off: open System Settings
             open_privacy_settings("microphone".to_string());
         }
