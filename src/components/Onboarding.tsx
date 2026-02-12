@@ -12,7 +12,6 @@ import {
   Loader2,
   Mic,
   MousePointerClick,
-  Sparkles,
   TriangleAlert,
 } from "lucide-react";
 
