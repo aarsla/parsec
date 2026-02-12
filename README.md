@@ -27,6 +27,20 @@ AudioShift processes everything locally. Zero network calls during transcription
 | Windows | 10+ | x86_64 |
 | Linux | Ubuntu 22.04+ | x86_64 |
 
+## Installation
+
+Download the latest release from the [releases page](https://github.com/aarsla/audioshift/releases).
+
+### macOS
+
+The app is not signed with an Apple Developer certificate. After installing, remove the quarantine flag:
+
+```bash
+xattr -cr /Applications/AudioShift.app
+```
+
+Or: open the app, then go to **System Settings → Privacy & Security** and click **Open Anyway**.
+
 ## Development
 
 ### Prerequisites
