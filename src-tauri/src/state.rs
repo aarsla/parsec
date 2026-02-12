@@ -28,6 +28,7 @@ pub struct AppState {
     hotkey: Mutex<String>,
     tray: Mutex<Option<TrayIcon>>,
     tray_status_item: Mutex<Option<MenuItem<tauri::Wry>>>,
+    tray_updates_item: Mutex<Option<MenuItem<tauri::Wry>>>,
 }
 
 impl AppState {
@@ -42,6 +43,7 @@ impl AppState {
             }.to_string()),
             tray: Mutex::new(None),
             tray_status_item: Mutex::new(None),
+            tray_updates_item: Mutex::new(None),
         }
     }
 
@@ -72,5 +74,13 @@ impl AppState {
 
     pub fn tray_status_item(&self) -> Option<MenuItem<tauri::Wry>> {
         self.tray_status_item.lock().clone()
+    }
+
+    pub fn set_tray_updates_item(&self, item: MenuItem<tauri::Wry>) {
+        *self.tray_updates_item.lock() = Some(item);
+    }
+
+    pub fn tray_updates_item(&self) -> Option<MenuItem<tauri::Wry>> {
+        self.tray_updates_item.lock().clone()
     }
 }

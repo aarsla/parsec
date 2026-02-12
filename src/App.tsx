@@ -103,6 +103,12 @@ export default function App() {
         } catch (e) {
           console.error("Failed to stop recording:", e);
         }
+      } else if (event.payload === "cancel") {
+        try {
+          await invoke("cancel_recording");
+        } catch (e) {
+          console.error("Failed to cancel recording:", e);
+        }
       }
     });
 

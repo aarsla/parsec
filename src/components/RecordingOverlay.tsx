@@ -7,6 +7,17 @@ import { availableMonitors, cursorPosition } from "@tauri-apps/api/window";
 import { load } from "@tauri-apps/plugin-store";
 import Waveform from "./Waveform";
 
+function shortcutToDisplay(shortcut: string): string {
+  return shortcut
+    .replace("CmdOrCtrl", "\u2318")
+    .replace("Cmd", "\u2318")
+    .replace("Ctrl", "\u2303")
+    .replace("Shift", "\u21E7")
+    .replace("Alt", "\u2325")
+    .replace("Space", "Space")
+    .replace(/\+/g, " ");
+}
+
 export type OverlayTheme = "default" | "minimal" | "glass" | "compact";
 
 type OverlayPosition =
@@ -20,7 +31,6 @@ interface ThemeConfig {
   w: number;
   h: number;
   showWaveform: boolean;
-  showButtons: boolean;
   containerClass: string;
   waveformColor: string;
 }
@@ -28,25 +38,25 @@ interface ThemeConfig {
 const THEME_CONFIGS: Record<OverlayTheme, ThemeConfig> = {
   default: {
     w: 320, h: 96,
-    showWaveform: true, showButtons: true,
+    showWaveform: true,
     containerClass: "bg-background/90 rounded-3xl",
     waveformColor: "",
   },
   minimal: {
     w: 320, h: 44,
-    showWaveform: false, showButtons: true,
+    showWaveform: false,
     containerClass: "bg-background/90 rounded-full",
     waveformColor: "",
   },
   glass: {
     w: 320, h: 96,
-    showWaveform: true, showButtons: true,
+    showWaveform: true,
     containerClass: "bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl",
     waveformColor: "255, 255, 255",
   },
   compact: {
     w: 110, h: 36,
-    showWaveform: false, showButtons: false,
+    showWaveform: false,
     containerClass: "bg-background/90 rounded-full",
     waveformColor: "",
   },
@@ -144,9 +154,12 @@ export default function RecordingOverlay({ status }: Props) {
     () => (localStorage.getItem("overlayTheme") || "default") as OverlayTheme
   );
   const [accentKey, setAccentKey] = useState(() => localStorage.getItem("accentColor") || "blue");
+  const isMac = navigator.userAgent.includes("Mac");
+  const [hotkey, setHotkey] = useState(isMac ? "Alt+Space" : "Ctrl+Space");
   // Sync settings cross-window via tauri store onKeyChange
   useEffect(() => {
     let cleanups: (() => void)[] = [];
+    invoke<string>("get_current_hotkey").then(setHotkey).catch(() => {});
     load("settings.json").then(async (store) => {
       const u1 = await store.onKeyChange<string>("overlayTheme", (v) => {
         if (v) setTheme(v as OverlayTheme);
@@ -160,7 +173,10 @@ export default function RecordingOverlay({ status }: Props) {
         else if (v === "light") root.classList.remove("dark");
         else root.classList.toggle("dark", window.matchMedia("(prefers-color-scheme: dark)").matches);
       });
-      cleanups = [u1, u2, u3];
+      const u4 = await store.onKeyChange<string>("hotkey", (v) => {
+        if (v) setHotkey(v);
+      });
+      cleanups = [u1, u2, u3, u4];
     });
     return () => { cleanups.forEach((fn) => fn()); };
   }, []);
@@ -200,18 +216,6 @@ export default function RecordingOverlay({ status }: Props) {
   }, [status, theme]);
 
   useEffect(() => {
-    if (status !== "recording") return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        handleCancel();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [status]);
-
-  useEffect(() => {
     const unlisten = listen<number>("audio-amplitude", (event) => {
       setAmplitudes((prev) => {
         const next = [...prev, event.payload];
@@ -222,22 +226,6 @@ export default function RecordingOverlay({ status }: Props) {
       unlisten.then((fn) => fn());
     };
   }, []);
-
-  const handleStop = async () => {
-    try {
-      await invoke("stop_recording");
-    } catch (e) {
-      console.error("Stop failed:", e);
-    }
-  };
-
-  const handleCancel = async () => {
-    try {
-      await invoke("cancel_recording");
-    } catch (e) {
-      console.error("Cancel failed:", e);
-    }
-  };
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -274,7 +262,7 @@ export default function RecordingOverlay({ status }: Props) {
     );
   }
 
-  // Minimal: red dot + timer + waveform + Done button, pill shape
+  // Minimal: red dot + timer + hotkey hint, pill shape
   if (theme === "minimal") {
     return (
       <div
@@ -285,20 +273,14 @@ export default function RecordingOverlay({ status }: Props) {
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
           <span className="text-foreground font-mono text-xs">{formatTime(seconds)}</span>
         </div>
-        <div className="flex-1 min-w-0 flex items-center h-6">
-          <Waveform amplitudes={amplitudes} barColor={waveformColor} />
-        </div>
-        <button
-          onClick={handleStop}
-          className="px-2 py-0.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs transition-colors shrink-0"
-        >
-          Done
-        </button>
+        <span className="text-muted-foreground text-[10px] shrink-0 ml-auto">
+          {shortcutToDisplay(hotkey)} to finish · Esc to cancel
+        </span>
       </div>
     );
   }
 
-  // Default / Glass / Accent: full layout with waveform + timer + buttons
+  // Default / Glass: full layout with waveform + timer + hotkey hints
   return (
     <div
       className={`flex flex-col h-full px-4 py-3 select-none ${config.containerClass}`}
@@ -312,20 +294,9 @@ export default function RecordingOverlay({ status }: Props) {
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
           <span className="text-foreground font-mono">{formatTime(seconds)}</span>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleCancel}
-            className="px-2 py-1 rounded bg-secondary hover:bg-accent text-muted-foreground transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleStop}
-            className="px-2 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white transition-colors"
-          >
-            Done
-          </button>
-        </div>
+        <span className="text-[11px]">
+          {shortcutToDisplay(hotkey)} to finish · Esc to cancel
+        </span>
       </div>
     </div>
   );

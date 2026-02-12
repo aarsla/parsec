@@ -30,13 +30,23 @@ pub fn paste_text(text: &str) -> Result<()> {
 
     #[cfg(target_os = "macos")]
     {
-        use std::process::Command;
-        Command::new("osascript")
-            .args([
-                "-e",
-                "tell application \"System Events\" to keystroke \"v\" using command down",
-            ])
-            .output()?;
+        use core_graphics::event::{CGEvent, CGEventFlags, CGEventTapLocation};
+        use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
+
+        const V_KEY: u16 = 0x09;
+
+        let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
+            .map_err(|_| anyhow::anyhow!("Failed to create CGEventSource"))?;
+
+        let key_down = CGEvent::new_keyboard_event(source.clone(), V_KEY, true)
+            .map_err(|_| anyhow::anyhow!("Failed to create key down event"))?;
+        key_down.set_flags(CGEventFlags::CGEventFlagCommand);
+        key_down.post(CGEventTapLocation::HID);
+
+        let key_up = CGEvent::new_keyboard_event(source, V_KEY, false)
+            .map_err(|_| anyhow::anyhow!("Failed to create key up event"))?;
+        key_up.set_flags(CGEventFlags::CGEventFlagCommand);
+        key_up.post(CGEventTapLocation::HID);
     }
 
     Ok(())

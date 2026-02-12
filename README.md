@@ -33,13 +33,13 @@ Download the latest release from the [releases page](https://github.com/aarsla/a
 
 ### macOS
 
-The app is not signed with an Apple Developer certificate. After installing, remove the quarantine flag:
+The app is signed and notarized. Make sure **System Settings → Privacy & Security → Allow applications from** is set to **App Store and identified developers** (the macOS default). On first launch, macOS will show a confirmation dialog — click **Open** to proceed.
 
-```bash
-xattr -cr /Applications/AudioShift.app
-```
+Two permissions are required:
+- **Microphone** — to capture audio for transcription
+- **Accessibility** — to paste transcribed text into the active application
 
-Or: open the app, then go to **System Settings → Privacy & Security** and click **Open Anyway**.
+You'll be prompted to grant these on first use. They can be managed in **System Settings → Privacy & Security**.
 
 ## Development
 

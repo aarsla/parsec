@@ -138,23 +138,23 @@ export default function Onboarding() {
     }
   };
 
-  // Listen for status changes on the Ready step to track test recording
+  // Listen for status changes and transcription result on the Ready step
   useEffect(() => {
     if (step !== 4) return;
-    const unlisten = listen<string>("status-changed", (event) => {
+    const unlistenStatus = listen<string>("status-changed", (event) => {
       const s = event.payload;
       if (s === "recording") setTestState("recording");
       else if (s === "transcribing") setTestState("transcribing");
-      else if (s === "idle" && (testState === "recording" || testState === "transcribing")) {
-        setTestState("idle");
-        // Fetch the latest transcription from history
-        invoke<Array<{ text: string }>>("get_history").then((entries) => {
-          if (entries.length > 0) setTestResult(entries[0].text);
-        });
-      }
+      else if (s === "idle") setTestState("idle");
     });
-    return () => { unlisten.then((fn) => fn()); };
-  }, [step, testState]);
+    const unlistenResult = listen<string>("transcription-complete", (event) => {
+      if (event.payload) setTestResult(event.payload);
+    });
+    return () => {
+      unlistenStatus.then((fn) => fn());
+      unlistenResult.then((fn) => fn());
+    };
+  }, [step]);
 
   const startTestRecording = async () => {
     setTestResult("");
