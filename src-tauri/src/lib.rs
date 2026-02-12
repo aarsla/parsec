@@ -244,6 +244,29 @@ async fn delete_model() -> Result<(), String> {
     transcriber::delete_model().await.map_err(|e| e.to_string())
 }
 
+#[derive(serde::Serialize)]
+struct OnboardingStatus {
+    model_ready: bool,
+    mic_granted: bool,
+    accessibility_granted: bool,
+}
+
+#[tauri::command]
+fn check_onboarding_needed() -> OnboardingStatus {
+    let mic = check_microphone_permission();
+    let a11y = check_accessibility_permission();
+    OnboardingStatus {
+        model_ready: transcriber::models_ready(),
+        mic_granted: mic == "granted",
+        accessibility_granted: a11y == "granted",
+    }
+}
+
+#[tauri::command]
+fn is_download_in_progress() -> bool {
+    transcriber::is_downloading()
+}
+
 fn create_overlay_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     let existing = app.get_webview_window("overlay");
     if existing.is_some() {
@@ -305,6 +328,24 @@ fn create_settings_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+fn create_onboarding_window(app: &tauri::AppHandle) -> tauri::Result<()> {
+    if let Some(win) = app.get_webview_window("onboarding") {
+        let _ = win.show();
+        let _ = win.set_focus();
+        return Ok(());
+    }
+
+    WebviewWindowBuilder::new(app, "onboarding", WebviewUrl::App("/onboarding".into()))
+        .title("AudioShift Setup")
+        .inner_size(520.0, 440.0)
+        .resizable(false)
+        .center()
+        .background_color(Color(32, 32, 32, 255))
+        .build()?;
+
+    Ok(())
+}
+
 fn status_menu_text(status: Status, hotkey: &str) -> String {
     let hint = hotkey_display_hint(hotkey);
     match status {
@@ -343,6 +384,13 @@ fn update_tray_for_status(app: &tauri::AppHandle, status: Status) {
     }
 }
 
+fn onboarding_needed() -> bool {
+    let model = transcriber::models_ready();
+    let mic = check_microphone_permission() == "granted";
+    let a11y = check_accessibility_permission() == "granted";
+    !model || !mic || !a11y
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -375,6 +423,8 @@ pub fn run() {
             get_model_status,
             download_model,
             delete_model,
+            check_onboarding_needed,
+            is_download_in_progress,
         ])
         .setup(|app| {
             // Create overlay window (hidden by default)
@@ -431,6 +481,38 @@ pub fn run() {
                 };
                 update_tray_for_status(&handle, status);
             });
+
+            // Listen for download progress to update tray status text
+            let handle = app.handle().clone();
+            app.listen("model-download-progress", move |event| {
+                let state = handle.state::<AppState>();
+                if let Some(status_item) = state.tray_status_item() {
+                    if let Ok(payload) = serde_json::from_str::<serde_json::Value>(event.payload()) {
+                        let file = payload.get("file").and_then(|v| v.as_str()).unwrap_or("");
+                        if file == "complete" {
+                            let text = status_menu_text(Status::Idle, &state.hotkey());
+                            let _ = status_item.set_text(text);
+                        } else {
+                            let overall_downloaded = payload.get("overall_downloaded").and_then(|v| v.as_u64()).unwrap_or(0);
+                            let overall_total = payload.get("overall_total").and_then(|v| v.as_u64()).unwrap_or(0);
+                            let dl_mb = overall_downloaded / (1024 * 1024);
+                            let total_mb = overall_total / (1024 * 1024);
+                            if total_mb > 0 {
+                                let _ = status_item.set_text(format!("Downloading model... {} / {} MB", dl_mb, total_mb));
+                            } else {
+                                let _ = status_item.set_text("Downloading model...".to_string());
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Check if onboarding is needed
+            if onboarding_needed() {
+                let _ = create_onboarding_window(&app.handle());
+                // Download is triggered by the onboarding frontend after its
+                // event listener is ready — no background spawn here.
+            }
 
             // Register global hotkey
             hotkey::register_default_hotkey(app)?;

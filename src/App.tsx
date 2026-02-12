@@ -4,13 +4,15 @@ import { invoke } from "@tauri-apps/api/core";
 import { load } from "@tauri-apps/plugin-store";
 import RecordingOverlay from "./components/RecordingOverlay";
 import Settings from "./components/Settings";
+import Onboarding from "./components/Onboarding";
 
-type Route = "overlay" | "settings" | "empty";
+type Route = "overlay" | "settings" | "onboarding" | "empty";
 
 function getRoute(): Route {
   const path = window.location.pathname;
   if (path === "/overlay") return "overlay";
   if (path === "/settings") return "settings";
+  if (path === "/onboarding") return "onboarding";
   return "empty";
 }
 
@@ -112,6 +114,8 @@ export default function App() {
       return <RecordingOverlay status={status} />;
     case "settings":
       return <Settings />;
+    case "onboarding":
+      return <Onboarding />;
     default:
       return null;
   }

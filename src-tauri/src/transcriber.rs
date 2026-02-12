@@ -2,9 +2,11 @@ use anyhow::{Context, Result};
 use parakeet_rs::{ParakeetTDT, TimestampMode, Transcriber};
 use parking_lot::Mutex;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Emitter;
 
 static MODEL: Mutex<Option<ParakeetTDT>> = Mutex::new(None);
+static DOWNLOAD_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 
 const MODEL_REPO: &str = "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/main";
 const MODEL_FILES: &[(&str, bool)] = &[
@@ -14,6 +16,9 @@ const MODEL_FILES: &[(&str, bool)] = &[
     ("config.json", false),
     ("nemo128.onnx", false),
 ];
+
+// Known approximate total for progress display (~652 + ~18 + small files)
+const APPROX_DOWNLOAD_BYTES: u64 = 680_000_000;
 
 pub fn model_dir() -> PathBuf {
     let data_dir = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
@@ -56,7 +61,17 @@ pub async fn delete_model() -> Result<()> {
     Ok(())
 }
 
-async fn download_file(url: &str, dest: &Path, app: &tauri::AppHandle, label: &str) -> Result<()> {
+pub fn is_downloading() -> bool {
+    DOWNLOAD_IN_PROGRESS.load(Ordering::Relaxed)
+}
+
+async fn download_file(
+    url: &str,
+    dest: &Path,
+    app: &tauri::AppHandle,
+    label: &str,
+    cumulative_offset: u64,
+) -> Result<u64> {
     use futures_util::StreamExt;
 
     let client = reqwest::Client::new();
@@ -66,6 +81,8 @@ async fn download_file(url: &str, dest: &Path, app: &tauri::AppHandle, label: &s
     let mut stream = resp.bytes_stream();
     let mut file = tokio::fs::File::create(dest).await?;
     let mut downloaded: u64 = 0;
+    let mut last_overall_pct: u32 =
+        ((cumulative_offset as f64 / APPROX_DOWNLOAD_BYTES as f64) * 100.0).min(99.0) as u32;
 
     use tokio::io::AsyncWriteExt;
     while let Some(chunk) = stream.next().await {
@@ -73,22 +90,38 @@ async fn download_file(url: &str, dest: &Path, app: &tauri::AppHandle, label: &s
         file.write_all(&chunk).await?;
         downloaded += chunk.len() as u64;
 
-        if total > 0 {
-            let progress = (downloaded as f64 / total as f64 * 100.0) as u32;
-            let _ = app.emit("model-download-progress", serde_json::json!({
-                "file": label,
-                "progress": progress,
-                "downloaded": downloaded,
-                "total": total,
-            }));
+        let progress = if total > 0 {
+            (downloaded as f64 / total as f64 * 100.0) as u32
+        } else {
+            0
+        };
+        let overall_downloaded = cumulative_offset + downloaded;
+        let overall_progress =
+            ((overall_downloaded as f64 / APPROX_DOWNLOAD_BYTES as f64) * 100.0).min(99.0) as u32;
+
+        // Only emit when integer overall_progress changes (throttle)
+        if overall_progress != last_overall_pct {
+            last_overall_pct = overall_progress;
+            let _ = app.emit(
+                "model-download-progress",
+                serde_json::json!({
+                    "file": label,
+                    "progress": progress,
+                    "downloaded": downloaded,
+                    "total": total,
+                    "overall_downloaded": overall_downloaded,
+                    "overall_total": APPROX_DOWNLOAD_BYTES,
+                    "overall_progress": overall_progress,
+                }),
+            );
         }
     }
 
     file.flush().await?;
-    Ok(())
+    Ok(downloaded)
 }
 
-pub async fn ensure_model(app: &tauri::AppHandle) -> Result<()> {
+async fn do_ensure_model(app: &tauri::AppHandle) -> Result<()> {
     if models_ready() {
         return Ok(());
     }
@@ -96,21 +129,44 @@ pub async fn ensure_model(app: &tauri::AppHandle) -> Result<()> {
     let dir = model_dir();
     tokio::fs::create_dir_all(&dir).await?;
 
-    let _ = app.emit("model-download-progress", serde_json::json!({
-        "file": "starting",
-        "progress": 0,
-    }));
-
+    // Collect files that still need downloading (skip already present)
+    let mut files_to_download: Vec<(&str, bool)> = Vec::new();
     for (filename, is_int8) in MODEL_FILES {
-        let url = format!("{}/{}", MODEL_REPO, filename);
         let dest = dir.join(filename);
-
         if dest.exists() {
             continue;
         }
+        if *is_int8 {
+            let standard_name = filename.replace(".int8", "");
+            if dir.join(&standard_name).exists() {
+                continue;
+            }
+        }
+        files_to_download.push((filename, *is_int8));
+    }
 
-        download_file(&url, &dest, app, filename).await
-            .with_context(|| format!("Failed to download {}", filename))?;
+    let _ = app.emit(
+        "model-download-progress",
+        serde_json::json!({
+            "file": "starting",
+            "progress": 0,
+            "overall_downloaded": 0,
+            "overall_total": APPROX_DOWNLOAD_BYTES,
+            "overall_progress": 0,
+        }),
+    );
+
+    let mut cumulative_offset: u64 = 0;
+    for (filename, is_int8) in &files_to_download {
+        let url = format!("{}/{}", MODEL_REPO, filename);
+        let dest = dir.join(filename);
+
+        let bytes_downloaded =
+            download_file(&url, &dest, app, filename, cumulative_offset)
+                .await
+                .with_context(|| format!("Failed to download {}", filename))?;
+
+        cumulative_offset += bytes_downloaded;
 
         // Rename int8 files to the standard names that parakeet-rs expects
         if *is_int8 {
@@ -122,12 +178,37 @@ pub async fn ensure_model(app: &tauri::AppHandle) -> Result<()> {
         }
     }
 
-    let _ = app.emit("model-download-progress", serde_json::json!({
-        "file": "complete",
-        "progress": 100,
-    }));
+    let _ = app.emit(
+        "model-download-progress",
+        serde_json::json!({
+            "file": "complete",
+            "progress": 100,
+            "overall_downloaded": cumulative_offset,
+            "overall_total": APPROX_DOWNLOAD_BYTES,
+            "overall_progress": 100,
+        }),
+    );
 
     Ok(())
+}
+
+pub async fn ensure_model(app: &tauri::AppHandle) -> Result<()> {
+    if models_ready() {
+        return Ok(());
+    }
+
+    // Concurrency guard: only one download at a time
+    if DOWNLOAD_IN_PROGRESS
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        // Another download is already in progress, events still flow from it
+        return Ok(());
+    }
+
+    let result = do_ensure_model(app).await;
+    DOWNLOAD_IN_PROGRESS.store(false, Ordering::SeqCst);
+    result
 }
 
 fn load_model() -> Result<()> {
