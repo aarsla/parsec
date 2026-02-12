@@ -103,11 +103,22 @@ fn set_hotkey(app: tauri::AppHandle, state: tauri::State<'_, AppState>, shortcut
 fn check_microphone_permission() -> String {
     #[cfg(target_os = "macos")]
     {
-        use cpal::traits::HostTrait;
-        let host = cpal::default_host();
-        match host.default_input_device() {
-            Some(_) => "granted".to_string(),
-            None => "unknown".to_string(),
+        use std::process::Command;
+        // Query macOS AVFoundation authorization status for microphone (media type "soun")
+        // Returns: 0 = not determined, 1 = denied/restricted, 2 = denied, 3 = authorized
+        let output = Command::new("osascript")
+            .args(["-e", "use framework \"AVFoundation\"\nreturn (current application's AVCaptureDevice's authorizationStatusForMediaType:(current application's AVMediaTypeAudio)) as integer"])
+            .output();
+        match output {
+            Ok(o) => {
+                let status = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                match status.as_str() {
+                    "3" => "granted".to_string(),
+                    "0" => "not_determined".to_string(),
+                    _ => "denied".to_string(),
+                }
+            }
+            Err(_) => "unknown".to_string(),
         }
     }
     #[cfg(not(target_os = "macos"))]
@@ -120,13 +131,14 @@ fn check_microphone_permission() -> String {
 fn check_accessibility_permission() -> String {
     #[cfg(target_os = "macos")]
     {
-        use std::process::Command;
-        let output = Command::new("osascript")
-            .args(["-e", "tell application \"System Events\" to return name of first process"])
-            .output();
-        match output {
-            Ok(o) if o.status.success() => "granted".to_string(),
-            _ => "denied".to_string(),
+        // AXIsProcessTrusted() checks accessibility without triggering a prompt
+        extern "C" {
+            fn AXIsProcessTrusted() -> bool;
+        }
+        if unsafe { AXIsProcessTrusted() } {
+            "granted".to_string()
+        } else {
+            "denied".to_string()
         }
     }
     #[cfg(not(target_os = "macos"))]
