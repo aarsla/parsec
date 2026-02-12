@@ -898,7 +898,7 @@ export default function Settings() {
         )}
         <div className="px-3 pb-3">
           <p className="text-[11px] text-muted-foreground/50 px-3">
-            AudioShift v0.1.2
+            AudioShift v0.1.3
           </p>
         </div>
       </div>
@@ -1323,7 +1323,7 @@ export default function Settings() {
               <SectionCard title="About AudioShift" icon={<Info size={14} />}>
                 <SettingRow label="Version" description="Current app version">
                   <span className="text-sm text-muted-foreground font-mono">
-                    0.1.2
+                    0.1.3
                   </span>
                 </SettingRow>
                 <Separator />
