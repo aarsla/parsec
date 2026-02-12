@@ -56,7 +56,8 @@ export default function Onboarding() {
   });
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [hotkey, setHotkey] = useState("CmdOrCtrl+Shift+Space");
+  const isMac = navigator.userAgent.includes("Mac");
+  const [hotkey, setHotkey] = useState(isMac ? "Alt+Space" : "Ctrl+Space");
   const [testState, setTestState] = useState<"idle" | "recording" | "transcribing">("idle");
   const [testResult, setTestResult] = useState("");
   const downloadStarted = useRef(false);

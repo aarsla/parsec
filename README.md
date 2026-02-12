@@ -8,7 +8,7 @@ No accounts. No subscriptions. No cloud.
 
 ## Features
 
-- **Global hotkey** — trigger recording from any app with `Cmd+Shift+Space` (customizable)
+- **Global hotkey** — trigger recording from any app with `Option+Space` on Mac / `Ctrl+Space` on Windows (customizable)
 - **Local transcription** — powered by [Parakeet TDT 0.6B](https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx), runs entirely on-device
 - **Auto-paste** — transcribed text is inserted directly into the active application
 - **Transcription history** — stores up to 500 entries with app context

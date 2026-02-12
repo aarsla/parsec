@@ -429,7 +429,9 @@ fn status_menu_text(status: Status, hotkey: &str) -> String {
 fn hotkey_display_hint(hotkey: &str) -> String {
     hotkey
         .replace("CmdOrCtrl", "\u{2318}")
+        .replace("Alt", "\u{2325}")
         .replace("Shift", "\u{21E7}")
+        .replace("Ctrl", "\u{2303}")
         .replace("Space", "Space")
         .replace("+", "")
 }

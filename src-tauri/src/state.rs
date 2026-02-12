@@ -35,7 +35,11 @@ impl AppState {
         Self {
             status: Mutex::new(Status::Idle),
             audio_buffer: Arc::new(Mutex::new(Vec::new())),
-            hotkey: Mutex::new("CmdOrCtrl+Shift+Space".to_string()),
+            hotkey: Mutex::new(if cfg!(target_os = "macos") {
+                "Alt+Space"
+            } else {
+                "Ctrl+Space"
+            }.to_string()),
             tray: Mutex::new(None),
             tray_status_item: Mutex::new(None),
         }
