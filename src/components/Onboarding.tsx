@@ -90,12 +90,12 @@ export default function Onboarding() {
       if (!s.model_ready && !downloadStarted.current) {
         downloadStarted.current = true;
         // Delete any partial/stale files so nothing gets skipped
-        try { await invoke("delete_model"); } catch {}
+        try { await invoke("delete_model", { modelId: "parakeet-tdt-0.6b-v3" }); } catch {}
         // Show immediate feedback
         setProgress({ file: "starting", progress: 0, overall_progress: 0, overall_downloaded: 0, overall_total: 680_000_000 });
         // Start download — listener above is already active
         try {
-          await invoke("download_model");
+          await invoke("download_model", { modelId: "parakeet-tdt-0.6b-v3" });
         } catch (e) {
           setDownloadError(String(e));
           setProgress(null);

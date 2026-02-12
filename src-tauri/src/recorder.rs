@@ -83,7 +83,7 @@ fn pause_and_drop_stream(stream: Option<SendStream>) {
     }
 }
 
-pub fn stop_recording(state: &AppState) -> Result<String> {
+pub fn stop_recording(state: &AppState) -> Result<Vec<f32>> {
     pause_and_drop_stream(ACTIVE_STREAM.lock().take());
 
     let samples = state.audio_buffer.lock().clone();
@@ -92,22 +92,7 @@ pub fn stop_recording(state: &AppState) -> Result<String> {
         anyhow::bail!("No audio recorded");
     }
 
-    let temp_dir = std::env::temp_dir();
-    let wav_path = temp_dir.join("audioshift_recording.wav");
-    let spec = hound::WavSpec {
-        channels: 1,
-        sample_rate: SAMPLE_RATE,
-        bits_per_sample: 32,
-        sample_format: hound::SampleFormat::Float,
-    };
-
-    let mut writer = hound::WavWriter::create(&wav_path, spec)?;
-    for sample in &samples {
-        writer.write_sample(*sample)?;
-    }
-    writer.finalize()?;
-
-    Ok(wav_path.to_string_lossy().to_string())
+    Ok(samples)
 }
 
 pub fn start_monitor(app: &tauri::AppHandle, device_name: Option<&str>) -> Result<()> {

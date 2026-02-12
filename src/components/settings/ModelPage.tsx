@@ -1,105 +1,175 @@
-import { Box, Download, Loader2, Trash2, Settings as SettingsIcon } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
-import { SectionCard, SettingRow, formatBytes, type ModelInfo, type DownloadProgress } from "./shared";
+import { Box, Download, Loader2, Trash2, ChevronDown } from "lucide-react";
+import { SectionCard, SettingRow, formatBytes, type ModelStatusEntry, type DownloadProgress } from "./shared";
 
 interface Props {
-  modelInfo: ModelInfo;
+  models: ModelStatusEntry[];
+  liveModel: string;
+  fileModel: string;
   downloadProgress: DownloadProgress | null;
-  modelActionLoading: boolean;
-  onDownloadModel: () => void;
-  onDeleteModel: () => void;
+  downloadingModelId: string | null;
+  onDownloadModel: (modelId: string) => void;
+  onDeleteModel: (modelId: string) => void;
+  onLiveModelChange: (modelId: string) => void;
+  onFileModelChange: (modelId: string) => void;
+}
+
+function EngineBadge({ engine }: { engine: string }) {
+  return (
+    <span
+      className={`px-1.5 py-0.5 text-[10px] font-medium rounded uppercase tracking-wider ${
+        engine === "whisper"
+          ? "bg-blue-500/10 text-blue-500"
+          : "bg-emerald-500/10 text-emerald-500"
+      }`}
+    >
+      {engine}
+    </span>
+  );
+}
+
+function ModelSelect({
+  value,
+  onChange,
+  models,
+  label,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+  models: ModelStatusEntry[];
+  label: string;
+}) {
+  const readyModels = models.filter((m) => m.ready);
+  return (
+    <SettingRow label={label} description="Only downloaded models are available">
+      <div className="relative">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="appearance-none bg-secondary border border-border rounded-md px-3 py-1.5 pr-7 text-sm text-foreground cursor-pointer hover:border-primary/40 transition-colors"
+        >
+          {readyModels.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+          {readyModels.length === 0 && (
+            <option value="" disabled>
+              No models downloaded
+            </option>
+          )}
+        </select>
+        <ChevronDown
+          size={12}
+          className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground"
+        />
+      </div>
+    </SettingRow>
+  );
 }
 
 export default function ModelPage({
-  modelInfo, downloadProgress, modelActionLoading,
-  onDownloadModel, onDeleteModel,
+  models,
+  liveModel,
+  fileModel,
+  downloadProgress,
+  downloadingModelId,
+  onDownloadModel,
+  onDeleteModel,
+  onLiveModelChange,
+  onFileModelChange,
 }: Props) {
   return (
     <div className="space-y-4">
-      <SectionCard title="Speech Model" icon={<Box size={14} />}>
-        <SettingRow label="Model" description="Local transcription engine">
-          <span className="text-sm text-muted-foreground font-mono">
-            {modelInfo.name} {modelInfo.version}
-          </span>
-        </SettingRow>
-        <Separator />
-        <SettingRow label="Quantization" description="Model precision format">
-          <span className="text-sm text-muted-foreground font-mono">
-            {modelInfo.quantization}
-          </span>
-        </SettingRow>
-        <Separator />
-        <SettingRow label="Status" description="Whether model files are downloaded">
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full shrink-0 ${modelInfo.ready ? "bg-emerald-500" : "bg-amber-500"}`} />
-            <span className="text-sm text-muted-foreground">
-              {modelInfo.ready ? "Ready" : "Not downloaded"}
-            </span>
-          </div>
-        </SettingRow>
-        {modelInfo.ready && (
-          <>
-            <Separator />
-            <SettingRow label="Storage" description={modelInfo.path}>
-              <span className="text-sm text-muted-foreground font-mono">
-                {formatBytes(modelInfo.size_bytes)}
-              </span>
-            </SettingRow>
-          </>
-        )}
+      <SectionCard title="Model Assignment" icon={<Box size={14} />}>
+        <ModelSelect
+          value={liveModel}
+          onChange={onLiveModelChange}
+          models={models}
+          label="Live Recording"
+        />
+        <div className="border-t border-border" />
+        <ModelSelect
+          value={fileModel}
+          onChange={onFileModelChange}
+          models={models}
+          label="File Transcription"
+        />
       </SectionCard>
 
-      {downloadProgress && (
-        <SectionCard title="Download Progress" icon={<Download size={14} />}>
-          <div className="py-3 space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground truncate mr-2">{downloadProgress.file}</span>
-              <span className="text-foreground font-mono shrink-0">{downloadProgress.progress}%</span>
-            </div>
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full transition-all duration-300"
-                style={{ width: `${downloadProgress.progress}%` }}
-              />
-            </div>
-            {downloadProgress.downloaded != null && downloadProgress.total != null && (
-              <div className="text-[11px] text-muted-foreground">
-                {formatBytes(downloadProgress.downloaded)} / {formatBytes(downloadProgress.total)}
-              </div>
-            )}
-          </div>
-        </SectionCard>
-      )}
+      <SectionCard title="Available Models" icon={<Download size={14} />}>
+        <div className="divide-y divide-border">
+          {models.map((model) => {
+            const isDownloading = downloadingModelId === model.id && downloadProgress != null;
+            return (
+              <div key={model.id} className="py-3 flex items-center gap-3">
+                {/* Status dot */}
+                <div
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    model.ready ? "bg-emerald-500" : "bg-muted-foreground/30"
+                  }`}
+                />
 
-      <SectionCard title="Actions" icon={<SettingsIcon size={14} />}>
-        <div className="flex items-center gap-2 py-3">
-          <button
-            onClick={onDownloadModel}
-            disabled={modelActionLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md
-                       bg-primary text-primary-foreground hover:bg-primary/90
-                       transition-colors disabled:opacity-50"
-          >
-            {modelActionLoading && downloadProgress ? (
-              <Loader2 size={12} className="animate-spin" />
-            ) : (
-              <Download size={12} />
-            )}
-            {modelInfo.ready ? "Re-download Model" : "Download Model"}
-          </button>
-          {modelInfo.ready && (
-            <button
-              onClick={onDeleteModel}
-              disabled={modelActionLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md
-                         bg-secondary border border-border text-muted-foreground
-                         hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30
-                         transition-colors disabled:opacity-50"
-            >
-              <Trash2 size={12} />
-              Delete Model
-            </button>
-          )}
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-foreground">{model.name}</span>
+                    <EngineBadge engine={model.engine} />
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {model.ready
+                      ? `${formatBytes(model.diskSize)} on disk`
+                      : `~${model.sizeLabel} download`}
+                  </div>
+                  {isDownloading && downloadProgress && (
+                    <div className="mt-2 space-y-1">
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all duration-300"
+                          style={{ width: `${downloadProgress.progress}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                        <span>{downloadProgress.file}</span>
+                        <span>{downloadProgress.progress}%</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action */}
+                <div className="shrink-0">
+                  {model.ready ? (
+                    <button
+                      onClick={() => onDeleteModel(model.id)}
+                      disabled={isDownloading}
+                      className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-md
+                                 bg-secondary border border-border text-muted-foreground
+                                 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30
+                                 transition-colors disabled:opacity-50"
+                    >
+                      <Trash2 size={11} />
+                      Delete
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => onDownloadModel(model.id)}
+                      disabled={isDownloading || downloadingModelId != null}
+                      className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-md
+                                 bg-primary text-primary-foreground hover:bg-primary/90
+                                 transition-colors disabled:opacity-50"
+                    >
+                      {isDownloading ? (
+                        <Loader2 size={11} className="animate-spin" />
+                      ) : (
+                        <Download size={11} />
+                      )}
+                      Download
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </SectionCard>
     </div>
