@@ -18,7 +18,7 @@ import {
   Moon,
   Monitor,
   Check,
-  Play,
+
   RefreshCw,
   Download,
   Clock,
@@ -183,7 +183,7 @@ function shortcutToDisplay(shortcut: string): string {
     .replace("Shift", "\u21E7")
     .replace("Alt", "\u2325")
     .replace("Space", "Space")
-    .replace(/\+/g, "");
+    .replace(/\+/g, " ");
 }
 
 // --- Sub-components ---
@@ -644,6 +644,9 @@ export default function Settings() {
   const handleStartSoundChange = async (sound: StartSound) => {
     setStartSound(sound);
     localStorage.setItem("startSound", sound);
+    if (sound !== "none") {
+      new Audio(`/sounds/${sound}.mp3`).play().catch(() => {});
+    }
     try {
       const store = await load("settings.json");
       await store.set("startSound", sound);
@@ -652,11 +655,6 @@ export default function Settings() {
     }
   };
 
-  const playStartSound = () => {
-    if (startSound !== "none") {
-      new Audio(`/sounds/${startSound}.mp3`).play().catch(() => {});
-    }
-  };
 
   const handleOverlayPositionChange = async (pos: OverlayPosition) => {
     setOverlayPosition(pos);
@@ -891,32 +889,21 @@ export default function Settings() {
                   label="Start Sound"
                   description="Choose which sound plays when recording starts"
                 >
-                  <div className="flex items-center gap-2">
-                    <Select
-                      value={startSound}
-                      onValueChange={(v) => handleStartSoundChange(v as StartSound)}
-                    >
-                      <SelectTrigger className="w-28">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {START_SOUNDS.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <button
-                      onClick={playStartSound}
-                      disabled={startSound === "none"}
-                      className="p-1.5 rounded-md bg-secondary border border-border hover:bg-accent
-                                 text-muted-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
-                      title="Preview sound"
-                    >
-                      <Play size={14} />
-                    </button>
-                  </div>
+                  <Select
+                    value={startSound}
+                    onValueChange={(v) => handleStartSoundChange(v as StartSound)}
+                  >
+                    <SelectTrigger className="w-28">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {START_SOUNDS.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </SettingRow>
               </SectionCard>
             </div>
