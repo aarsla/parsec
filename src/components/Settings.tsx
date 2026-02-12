@@ -584,6 +584,15 @@ export default function Settings() {
     return () => mq.removeEventListener("change", handler);
   }, [themeMode]);
 
+  // Listen for tray menu navigation
+  useEffect(() => {
+    const unlisten = listen<string>("navigate-section", (event) => {
+      const section = event.payload as Section;
+      setActiveSection(section);
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, []);
+
   const loadAppSettings = async () => {
     try {
       const store = await load("settings.json");
@@ -810,7 +819,7 @@ export default function Settings() {
       if (msg.includes("404") || msg.includes("Not Found") || msg.includes("no updates")) {
         setUpdateError("No releases published yet.");
       } else {
-        setUpdateError("Update check failed. Check your internet connection and try again.");
+        setUpdateError(msg || "Update check failed. Check your internet connection and try again.");
       }
       setUpdateStatus("error");
     }
@@ -898,7 +907,7 @@ export default function Settings() {
         )}
         <div className="px-3 pb-3">
           <p className="text-[11px] text-muted-foreground/50 px-3">
-            AudioShift v0.1.3
+            AudioShift v0.1.4
           </p>
         </div>
       </div>
@@ -1323,7 +1332,7 @@ export default function Settings() {
               <SectionCard title="About AudioShift" icon={<Info size={14} />}>
                 <SettingRow label="Version" description="Current app version">
                   <span className="text-sm text-muted-foreground font-mono">
-                    0.1.3
+                    0.1.4
                   </span>
                 </SettingRow>
                 <Separator />
