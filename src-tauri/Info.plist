@@ -3,8 +3,8 @@
 <plist version="1.0">
 <dict>
     <key>NSMicrophoneUsageDescription</key>
-    <string>VTT needs microphone access to record your voice for transcription.</string>
+    <string>AudioShift needs microphone access to record your voice for transcription.</string>
     <key>NSAppleEventsUsageDescription</key>
-    <string>VTT needs accessibility access to paste transcribed text into the active application.</string>
+    <string>AudioShift needs accessibility access to paste transcribed text into the active application.</string>
 </dict>
 </plist>

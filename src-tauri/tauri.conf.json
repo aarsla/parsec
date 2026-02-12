@@ -18,7 +18,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM4MDM5MURFM0JEOTA3MzYKUldRMkI5azczcEVEeUFod3VaWElVR3JuVjI0cXNCczNWUDg0Wm9LZ0c2aGhvbkw5Y0ZQT1N1QVQK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ1Q0NEREM0QjM3NzVDRjYKUldUMlhIZXp4TjNNMWRBaTVyaGFkWWJ6QUI5MTNHMEQ4cnowekxKQnhxMFJRVGI0dCszbGVVN2gK",
       "endpoints": [
         "https://github.com/aarsla/audioshift/releases/latest/download/latest.json"
       ]
