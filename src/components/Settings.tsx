@@ -154,6 +154,7 @@ function keyEventToShortcut(e: KeyboardEvent): string | null {
   let normalizedKey = key;
   const keyMap: Record<string, string> = {
     " ": "Space",
+    "\u00A0": "Space",
     ArrowUp: "Up",
     ArrowDown: "Down",
     ArrowLeft: "Left",
@@ -167,6 +168,8 @@ function keyEventToShortcut(e: KeyboardEvent): string | null {
 
   if (keyMap[key]) {
     normalizedKey = keyMap[key];
+  } else if (e.code === "Space") {
+    normalizedKey = "Space";
   } else if (key.length === 1) {
     normalizedKey = key.toUpperCase();
   }
@@ -448,6 +451,7 @@ export default function Settings() {
   const [autoUpdate, setAutoUpdate] = useState(true);
   const [lastChecked, setLastChecked] = useState<string>("");
   const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "downloading" | "up-to-date" | "error">("idle");
+  const [updateError, setUpdateError] = useState("");
   const [themeMode, setThemeMode] = useState<ThemeMode>("system");
   const [accentColor, setAccentColor] = useState<AccentColor>("zinc");
   const [overlayPosition, setOverlayPosition] = useState<OverlayPosition>("center");
@@ -727,6 +731,7 @@ export default function Settings() {
 
   const checkForUpdates = async () => {
     setUpdateStatus("checking");
+    setUpdateError("");
     try {
       const update = await check();
       const now = new Date().toLocaleString("en-US", {
@@ -749,8 +754,14 @@ export default function Settings() {
       } else {
         setUpdateStatus("up-to-date");
       }
-    } catch (e) {
+    } catch (e: unknown) {
       console.error("Update check failed:", e);
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("404") || msg.includes("Not Found") || msg.includes("no updates")) {
+        setUpdateError("No releases published yet.");
+      } else {
+        setUpdateError("Update check failed. Check your internet connection and try again.");
+      }
       setUpdateStatus("error");
     }
   };
@@ -1020,9 +1031,9 @@ export default function Settings() {
                       You're on the latest version.{lastChecked && ` Last checked: ${lastChecked}`}
                     </p>
                   )}
-                  {updateStatus === "error" && (
-                    <p className="text-xs text-destructive">
-                      Update check failed. Check your internet connection and try again.
+                  {updateStatus === "error" && updateError && (
+                    <p className="text-xs text-muted-foreground">
+                      {updateError}
                     </p>
                   )}
                   {updateStatus === "idle" && lastChecked && (
