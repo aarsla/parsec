@@ -501,6 +501,15 @@ export default function Settings() {
     };
   }, []);
 
+  // Recheck permissions when window regains focus (e.g. returning from System Settings)
+  useEffect(() => {
+    const win = getCurrentWebviewWindow();
+    const unlisten = win.onFocusChanged(({ payload: focused }) => {
+      if (focused) checkPermissions();
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, []);
+
   // Listen for model download progress events
   useEffect(() => {
     const unlisten = listen<DownloadProgress>("model-download-progress", (event) => {
@@ -590,9 +599,9 @@ export default function Settings() {
     setMicPermission("checking");
     setA11yPermission("checking");
     const mic = await invoke<string>("check_microphone_permission");
-    setMicPermission(mic as PermissionStatus);
+    setMicPermission(mic === "granted" ? "granted" : "denied");
     const a11y = await invoke<string>("check_accessibility_permission");
-    setA11yPermission(a11y as PermissionStatus);
+    setA11yPermission(a11y === "granted" ? "granted" : "denied");
   };
 
   const openSettings = (pane: string) => {

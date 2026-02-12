@@ -103,13 +103,10 @@ fn set_hotkey(app: tauri::AppHandle, state: tauri::State<'_, AppState>, shortcut
 fn check_microphone_permission() -> String {
     #[cfg(target_os = "macos")]
     {
-        use objc2::class;
-        use objc2::msg_send;
-        use objc2_foundation::NSString;
-        let media_type = NSString::from_str("soun"); // AVMediaTypeAudio
-        let status: i32 = unsafe {
-            msg_send![class!(AVCaptureDevice), authorizationStatusForMediaType: &*media_type]
-        };
+        extern "C" {
+            fn check_mic_auth_status() -> i32;
+        }
+        let status = unsafe { check_mic_auth_status() };
         match status {
             3 => "granted".to_string(),
             0 => "not_determined".to_string(),
@@ -123,12 +120,64 @@ fn check_microphone_permission() -> String {
 }
 
 #[tauri::command]
+fn request_microphone_permission() {
+    #[cfg(target_os = "macos")]
+    {
+        let status = check_microphone_permission();
+        if status == "not_determined" {
+            // First time: trigger the native macOS mic permission prompt
+            use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+            let host = cpal::default_host();
+            if let Some(device) = host.default_input_device() {
+                if let Ok(config) = device.default_input_config() {
+                    if let Ok(stream) = device.build_input_stream(
+                        &config.into(),
+                        |_data: &[f32], _info: &cpal::InputCallbackInfo| {},
+                        |_err| {},
+                        None,
+                    ) {
+                        let _ = stream.play();
+                        std::thread::sleep(std::time::Duration::from_millis(200));
+                    }
+                }
+            }
+        } else {
+            // Already denied/toggled off: open System Settings
+            open_privacy_settings("microphone".to_string());
+        }
+    }
+}
+
+#[tauri::command]
 fn check_accessibility_permission() -> String {
     #[cfg(target_os = "macos")]
     {
         if macos_accessibility_client::accessibility::application_is_trusted() {
             "granted".to_string()
         } else {
+            "denied".to_string()
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        "granted".to_string()
+    }
+}
+
+#[tauri::command]
+fn request_accessibility_permission() -> String {
+    #[cfg(target_os = "macos")]
+    {
+        let status = check_accessibility_permission();
+        if status == "granted" {
+            return "granted".to_string();
+        }
+        // application_is_trusted_with_prompt only shows the prompt once;
+        // after that macOS silently returns false, so open System Settings
+        if macos_accessibility_client::accessibility::application_is_trusted_with_prompt() {
+            "granted".to_string()
+        } else {
+            open_privacy_settings("accessibility".to_string());
             "denied".to_string()
         }
     }
@@ -425,7 +474,9 @@ pub fn run() {
             get_current_hotkey,
             set_hotkey,
             check_microphone_permission,
+            request_microphone_permission,
             check_accessibility_permission,
+            request_accessibility_permission,
             open_privacy_settings,
             set_dock_visible,
             get_work_area_at_cursor,

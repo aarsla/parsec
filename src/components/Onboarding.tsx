@@ -11,7 +11,6 @@ import {
   Keyboard,
   Loader2,
   Mic,
-  MousePointerClick,
   TriangleAlert,
 } from "lucide-react";
 
@@ -105,13 +104,24 @@ export default function Onboarding() {
     init();
   }, []);
 
+  // Recheck status when window regains focus (e.g. returning from System Settings)
+  useEffect(() => {
+    const win = getCurrentWebviewWindow();
+    const unlisten = win.onFocusChanged(({ payload: focused }) => {
+      if (focused) {
+        invoke<OnboardingStatus>("check_onboarding_needed").then(setStatus);
+      }
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, []);
+
   // 3. Poll status on active steps as backup
   useEffect(() => {
-    if (step < 1 || step > 3) return;
+    if (step < 1) return;
     const interval = setInterval(async () => {
       const s = await invoke<OnboardingStatus>("check_onboarding_needed");
       setStatus(s);
-    }, 2000);
+    }, 1000);
     return () => clearInterval(interval);
   }, [step]);
 
@@ -125,10 +135,6 @@ export default function Onboarding() {
       setDownloadError(String(e));
       setProgress(null);
     }
-  };
-
-  const openPrivacySettings = (pane: string) => {
-    invoke("open_privacy_settings", { pane });
   };
 
   // Listen for status changes on the Ready step to track test recording
@@ -290,20 +296,17 @@ export default function Onboarding() {
                 <div className="space-y-3">
                   <div className="p-4 rounded-xl bg-card border border-border">
                     <p className="text-sm text-muted-foreground mb-3">
-                      Click the button below to open System Settings, then enable microphone access for AudioShift.
+                      Click the button below to grant microphone access.
                     </p>
                     <button
-                      onClick={() => openPrivacySettings("microphone")}
+                      onClick={() => invoke("request_microphone_permission")}
                       className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg
                                  bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                     >
-                      <MousePointerClick size={14} />
+                      <Mic size={14} />
                       Grant Microphone Access
                     </button>
                   </div>
-                  <p className="text-[11px] text-muted-foreground/70">
-                    This page will update automatically once access is granted.
-                  </p>
                 </div>
               )}
             </div>
@@ -335,14 +338,14 @@ export default function Onboarding() {
                 <div className="space-y-3">
                   <div className="p-4 rounded-xl bg-card border border-border">
                     <p className="text-sm text-muted-foreground mb-3">
-                      Click the button below to open System Settings, then enable accessibility access for AudioShift.
+                      Click the button below to grant accessibility access. You may need to toggle AudioShift in System Settings.
                     </p>
                     <button
-                      onClick={() => openPrivacySettings("accessibility")}
+                      onClick={() => invoke("request_accessibility_permission")}
                       className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg
                                  bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                     >
-                      <MousePointerClick size={14} />
+                      <Keyboard size={14} />
                       Grant Accessibility Access
                     </button>
                   </div>
