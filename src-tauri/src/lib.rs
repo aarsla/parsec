@@ -152,10 +152,19 @@ fn clear_history(app: tauri::AppHandle) {
 
 #[tauri::command]
 fn set_dock_visible(app: tauri::AppHandle, visible: bool) -> Result<(), String> {
-    app.set_dock_visibility(visible).map_err(|e| e.to_string())
+    #[cfg(target_os = "macos")]
+    {
+        app.set_dock_visibility(visible).map_err(|e| e.to_string())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (app, visible);
+        Ok(())
+    }
 }
 
 #[tauri::command]
+#[allow(unused_variables)]
 fn open_privacy_settings(pane: String) {
     #[cfg(target_os = "macos")]
     {
