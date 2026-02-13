@@ -15,23 +15,19 @@ interface Props {
 }
 
 export default function GeneralPage({
-  autostart, showInDock, startSound, isMas,
+  autostart, showInDock, startSound, isMas: _isMas,
   onAutostartChange, onDockChange, onStartSoundChange,
 }: Props) {
   return (
     <div className="space-y-4">
       <SectionCard title="Startup & Dock" icon={<SettingsIcon size={14} />}>
-        {!isMas && (
-          <>
-            <SettingRow
-              label="Launch at startup"
-              description="Automatically start AudioShift when you log in"
-            >
-              <Switch checked={autostart} onCheckedChange={onAutostartChange} />
-            </SettingRow>
-            <Separator />
-          </>
-        )}
+        <SettingRow
+          label="Launch at startup"
+          description="Automatically start AudioShift when you log in"
+        >
+          <Switch checked={autostart} onCheckedChange={onAutostartChange} />
+        </SettingRow>
+        <Separator />
         <SettingRow
           label="Show in Dock"
           description="Display AudioShift icon in the Dock"

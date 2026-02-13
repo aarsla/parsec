@@ -1,6 +1,6 @@
 [package]
 name = "audioshift"
-version = "0.1.6"
+version = "1.0.0"
 description = "AudioShift - local voice to text transcription"
 authors = ["Aid Arslanagic"]
 edition = "2021"
@@ -42,6 +42,8 @@ objc2 = "0.6"
 objc2-foundation = { version = "0.3", features = ["NSString"] }
 macos-accessibility-client = "0.0.1"
 core-graphics = "0.24"
+cocoa = "0.26"
+objc = "0.2.7"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 parakeet-rs = "0.3"

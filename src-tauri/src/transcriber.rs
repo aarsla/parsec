@@ -332,6 +332,29 @@ fn transcribe_whisper(
     Ok(text.trim().to_string())
 }
 
+// --- Preload ---
+
+/// Preload a model into memory in the background so the first transcription is instant.
+/// Safe to call even if the model isn't downloaded yet (just returns Ok).
+pub fn preload_model(model_id: &str) -> Result<()> {
+    let def = match model_registry::find_model(model_id) {
+        Some(d) => d,
+        None => return Ok(()),
+    };
+
+    if !model_registry::model_ready(model_id) {
+        return Ok(());
+    }
+
+    match def.engine {
+        Engine::Parakeet => load_parakeet()?,
+        Engine::Whisper => load_whisper(model_id)?,
+    }
+
+    eprintln!("[audioshift] Model preloaded: {}", model_id);
+    Ok(())
+}
+
 // --- Public transcribe entry point ---
 
 pub async fn transcribe_from_samples(

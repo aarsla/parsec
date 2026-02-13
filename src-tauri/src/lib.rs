@@ -1,777 +1,22 @@
+mod commands;
 mod escape_monitor;
 mod frontmost;
 mod history;
 mod hotkey;
+mod login_item;
 mod model_registry;
 mod paster;
+mod plugins;
 mod recorder;
 mod state;
 mod transcriber;
+mod tray;
+mod updater;
+mod windows;
 
-use state::{AppState, Status};
+use state::AppState;
+use tauri::Manager;
 use tauri_plugin_store::StoreExt;
-use tauri::{
-    menu::{MenuBuilder, MenuItemBuilder},
-    tray::TrayIconBuilder,
-    utils::config::Color,
-    Emitter, Listener, Manager, WebviewUrl, WebviewWindowBuilder, image::Image,
-};
-
-const TRAY_ICON_NORMAL: &[u8] = include_bytes!("../icons/tray-icon.png");
-const TRAY_ICON_RECORDING: &[u8] = include_bytes!("../icons/tray-icon-recording.png");
-
-#[tauri::command]
-fn get_input_devices() -> Vec<String> {
-    recorder::list_input_devices()
-}
-
-#[tauri::command]
-async fn start_monitor(app: tauri::AppHandle, device: Option<String>) -> Result<(), String> {
-    recorder::start_monitor(&app, device.as_deref()).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-fn stop_monitor() {
-    recorder::stop_monitor();
-}
-
-#[tauri::command]
-fn get_app_status(state: tauri::State<'_, AppState>) -> String {
-    state.status().to_string()
-}
-
-#[tauri::command]
-async fn start_recording(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, AppState>,
-) -> Result<(), String> {
-    let device_name = app
-        .store("settings.json")
-        .ok()
-        .and_then(|s| s.get("inputDevice"))
-        .and_then(|v| v.as_str().map(String::from))
-        .filter(|name| name != "default");
-    recorder::start_recording(&app, &state, device_name.as_deref()).map_err(|e| e.to_string())?;
-    escape_monitor::start(&app);
-    Ok(())
-}
-
-#[tauri::command]
-async fn stop_recording(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, AppState>,
-    auto_paste: bool,
-) -> Result<String, String> {
-    // Capture frontmost app before any processing
-    let (app_name, window_title) = frontmost::get_frontmost_app();
-
-    escape_monitor::stop();
-    let samples = recorder::stop_recording(&state).map_err(|e| e.to_string())?;
-
-    state.set_status(state::Status::Transcribing);
-    let _ = app.emit("status-changed", "transcribing");
-
-    let store = app.store("settings.json").ok();
-
-    let live_model = store
-        .as_ref()
-        .and_then(|s| s.get("liveModel"))
-        .and_then(|v| v.as_str().map(String::from))
-        .unwrap_or_else(|| model_registry::DEFAULT_MODEL_ID.to_string());
-
-    // Read language settings (only meaningful for Whisper models)
-    let language = store
-        .as_ref()
-        .and_then(|s| s.get("transcriptionLanguage"))
-        .and_then(|v| v.as_str().map(String::from))
-        .unwrap_or_else(|| "auto".to_string());
-    let language = if language == "auto" { None } else { Some(language) };
-
-    let translate = store
-        .as_ref()
-        .and_then(|s| s.get("translateToEnglish"))
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
-
-    let text = transcriber::transcribe_from_samples(&app, samples, &live_model, language, translate)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    if !text.is_empty() {
-        // Save to history
-        let entry = history::HistoryEntry {
-            id: uuid::Uuid::new_v4().to_string(),
-            text: text.clone(),
-            timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_millis() as i64,
-            app_name,
-            window_title,
-            char_count: text.chars().count(),
-        };
-        history::add_entry(&app, entry);
-
-        if auto_paste {
-            paster::paste_text(&text).map_err(|e| e.to_string())?;
-        } else {
-            paster::copy_to_clipboard(&text).map_err(|e| e.to_string())?;
-        }
-    }
-
-    // Emit result for listeners (e.g. onboarding test)
-    let _ = app.emit("transcription-complete", &text);
-
-    state.set_status(state::Status::Idle);
-    let _ = app.emit("status-changed", "idle");
-
-    Ok(text)
-}
-
-#[tauri::command]
-async fn cancel_recording(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, AppState>,
-) -> Result<(), String> {
-    escape_monitor::stop();
-    recorder::cancel_recording(&state).map_err(|e| e.to_string())?;
-    let _ = app.emit("status-changed", "idle");
-    Ok(())
-}
-
-#[tauri::command]
-fn get_current_hotkey(state: tauri::State<'_, AppState>) -> String {
-    state.hotkey()
-}
-
-#[tauri::command]
-fn set_hotkey(app: tauri::AppHandle, state: tauri::State<'_, AppState>, shortcut: String) -> Result<(), String> {
-    hotkey::update_hotkey(&app, &shortcut).map_err(|e| e.to_string())?;
-    state.set_hotkey(shortcut);
-    Ok(())
-}
-
-#[tauri::command]
-fn check_microphone_permission() -> String {
-    #[cfg(target_os = "macos")]
-    {
-        extern "C" {
-            fn check_mic_auth_status() -> i32;
-        }
-        let status = unsafe { check_mic_auth_status() };
-        match status {
-            3 => "granted".to_string(),
-            0 => "not_determined".to_string(),
-            _ => "denied".to_string(),
-        }
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        "granted".to_string()
-    }
-}
-
-#[tauri::command]
-fn request_microphone_permission() {
-    #[cfg(target_os = "macos")]
-    {
-        let status = check_microphone_permission();
-        if status == "not_determined" {
-            // First time: show the native macOS permission prompt
-            extern "C" {
-                fn request_mic_access();
-            }
-            unsafe { request_mic_access(); }
-        } else if status != "granted" {
-            // Already denied/toggled off: open System Settings
-            open_privacy_settings("microphone".to_string());
-        }
-    }
-}
-
-#[tauri::command]
-fn check_accessibility_permission() -> String {
-    #[cfg(target_os = "macos")]
-    {
-        if macos_accessibility_client::accessibility::application_is_trusted() {
-            "granted".to_string()
-        } else {
-            "denied".to_string()
-        }
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        "granted".to_string()
-    }
-}
-
-#[tauri::command]
-fn request_accessibility_permission() -> String {
-    #[cfg(target_os = "macos")]
-    {
-        let status = check_accessibility_permission();
-        if status == "granted" {
-            return "granted".to_string();
-        }
-        // application_is_trusted_with_prompt only shows the prompt once;
-        // after that macOS silently returns false, so open System Settings
-        if macos_accessibility_client::accessibility::application_is_trusted_with_prompt() {
-            "granted".to_string()
-        } else {
-            open_privacy_settings("accessibility".to_string());
-            "denied".to_string()
-        }
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        "granted".to_string()
-    }
-}
-
-#[tauri::command]
-fn get_history(app: tauri::AppHandle) -> Vec<history::HistoryEntry> {
-    history::get_entries(&app)
-}
-
-#[tauri::command]
-fn delete_history_entry(app: tauri::AppHandle, id: String) {
-    history::delete_entry(&app, &id);
-}
-
-#[tauri::command]
-fn clear_history(app: tauri::AppHandle) {
-    history::clear_entries(&app);
-}
-
-#[tauri::command]
-fn set_dock_visible(app: tauri::AppHandle, visible: bool) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    {
-        app.set_dock_visibility(visible).map_err(|e| e.to_string())
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        let _ = (app, visible);
-        Ok(())
-    }
-}
-
-#[tauri::command]
-#[allow(unused_variables)]
-fn open_privacy_settings(pane: String) {
-    #[cfg(target_os = "macos")]
-    {
-        use objc2_foundation::NSString;
-
-        let url = match pane.as_str() {
-            "microphone" => "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone",
-            "accessibility" => "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
-            _ => return,
-        };
-
-        unsafe {
-            let url_ns = NSString::from_str(url);
-            let nsurl: *mut objc2::runtime::AnyObject =
-                objc2::msg_send![objc2::class!(NSURL), URLWithString: &*url_ns];
-            if !nsurl.is_null() {
-                let workspace: *mut objc2::runtime::AnyObject =
-                    objc2::msg_send![objc2::class!(NSWorkspace), sharedWorkspace];
-                let _: bool = objc2::msg_send![workspace, openURL: nsurl];
-            }
-        }
-    }
-}
-
-#[derive(serde::Serialize)]
-struct WorkArea {
-    x: f64,
-    y: f64,
-    width: f64,
-    height: f64,
-}
-
-#[tauri::command]
-fn get_work_area_at_cursor() -> Option<WorkArea> {
-    #[cfg(target_os = "macos")]
-    {
-        macos_work_area_at_cursor()
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        None
-    }
-}
-
-#[cfg(target_os = "macos")]
-fn macos_work_area_at_cursor() -> Option<WorkArea> {
-    #[repr(C)]
-    struct ScreenRect {
-        x: f64,
-        y: f64,
-        width: f64,
-        height: f64,
-    }
-
-    extern "C" {
-        fn get_usable_bounds_at_cursor() -> ScreenRect;
-    }
-
-    let r = unsafe { get_usable_bounds_at_cursor() };
-    Some(WorkArea {
-        x: r.x,
-        y: r.y,
-        width: r.width,
-        height: r.height,
-    })
-}
-
-#[derive(serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ModelStatusEntry {
-    id: String,
-    name: String,
-    engine: model_registry::Engine,
-    description: String,
-    size_label: String,
-    ready: bool,
-    disk_size: u64,
-    path: String,
-}
-
-#[tauri::command]
-fn get_all_models_status() -> Vec<ModelStatusEntry> {
-    model_registry::MODELS
-        .iter()
-        .map(|m| ModelStatusEntry {
-            id: m.id.to_string(),
-            name: m.name.to_string(),
-            engine: m.engine,
-            description: m.description.to_string(),
-            size_label: model_registry::size_label(m.approx_bytes),
-            ready: model_registry::model_ready(m.id),
-            disk_size: model_registry::model_disk_size(m.id),
-            path: model_registry::model_dir(m.id).to_string_lossy().to_string(),
-        })
-        .collect()
-}
-
-#[tauri::command]
-async fn download_model(app: tauri::AppHandle, model_id: String) -> Result<(), String> {
-    transcriber::ensure_model(&app, &model_id).await.map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-async fn delete_model(model_id: String) -> Result<(), String> {
-    transcriber::delete_model(&model_id).await.map_err(|e| e.to_string())
-}
-
-#[derive(serde::Serialize)]
-struct OnboardingStatus {
-    model_ready: bool,
-    mic_granted: bool,
-    accessibility_granted: bool,
-}
-
-#[tauri::command]
-fn check_onboarding_needed() -> OnboardingStatus {
-    let mic = check_microphone_permission();
-    let a11y = check_accessibility_permission();
-    OnboardingStatus {
-        model_ready: model_registry::any_model_ready(),
-        mic_granted: mic == "granted",
-        accessibility_granted: a11y == "granted",
-    }
-}
-
-#[tauri::command]
-fn get_live_model(app: tauri::AppHandle) -> String {
-    app.store("settings.json")
-        .ok()
-        .and_then(|s| s.get("liveModel"))
-        .and_then(|v| v.as_str().map(String::from))
-        .unwrap_or_else(|| model_registry::DEFAULT_MODEL_ID.to_string())
-}
-
-#[tauri::command]
-fn set_live_model(app: tauri::AppHandle, model_id: String) -> Result<(), String> {
-    let store = app.store("settings.json").map_err(|e| e.to_string())?;
-    store.set("liveModel", serde_json::json!(model_id));
-    let _ = app.emit("live-model-changed", &model_id);
-    Ok(())
-}
-
-#[tauri::command]
-fn get_transcription_language(app: tauri::AppHandle) -> String {
-    app.store("settings.json")
-        .ok()
-        .and_then(|s| s.get("transcriptionLanguage"))
-        .and_then(|v| v.as_str().map(String::from))
-        .unwrap_or_else(|| "auto".to_string())
-}
-
-#[tauri::command]
-fn set_transcription_language(app: tauri::AppHandle, language: String) -> Result<(), String> {
-    let store = app.store("settings.json").map_err(|e| e.to_string())?;
-    store.set("transcriptionLanguage", serde_json::json!(language));
-    let _ = app.emit("transcription-language-changed", &language);
-    Ok(())
-}
-
-#[tauri::command]
-fn get_translate_to_english(app: tauri::AppHandle) -> bool {
-    app.store("settings.json")
-        .ok()
-        .and_then(|s| s.get("translateToEnglish"))
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false)
-}
-
-#[tauri::command]
-fn set_translate_to_english(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
-    let store = app.store("settings.json").map_err(|e| e.to_string())?;
-    store.set("translateToEnglish", serde_json::json!(enabled));
-    let _ = app.emit("translate-to-english-changed", enabled);
-    Ok(())
-}
-
-#[tauri::command]
-fn is_download_in_progress() -> bool {
-    transcriber::is_downloading()
-}
-
-#[cfg(feature = "updater")]
-#[derive(Clone, serde::Serialize)]
-struct UpdateStatusPayload {
-    status: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    version: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    body: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    error: Option<String>,
-}
-
-#[cfg(feature = "updater")]
-async fn do_update_check(app: &tauri::AppHandle, quiet: bool) {
-    use tauri_plugin_updater::UpdaterExt;
-
-    if !quiet {
-        let _ = app.emit("update-status", UpdateStatusPayload {
-            status: "checking".into(),
-            version: None, body: None, error: None,
-        });
-    }
-
-    let updater = match app.updater() {
-        Ok(u) => u,
-        Err(e) => {
-            if !quiet {
-                let _ = app.emit("update-status", UpdateStatusPayload {
-                    status: "error".into(),
-                    version: None, body: None,
-                    error: Some(e.to_string()),
-                });
-            }
-            return;
-        }
-    };
-
-    match updater.check().await {
-        Ok(Some(update)) => {
-            let state = app.state::<AppState>();
-            if let Some(item) = state.tray_updates_item() {
-                let _ = item.set_text(format!("Update Available (v{})", update.version));
-            }
-            let _ = app.emit("update-status", UpdateStatusPayload {
-                status: "available".into(),
-                version: Some(update.version),
-                body: update.body,
-                error: None,
-            });
-        }
-        Ok(None) => {
-            if !quiet {
-                let state = app.state::<AppState>();
-                if let Some(item) = state.tray_updates_item() {
-                    let _ = item.set_text("Check for Updates...");
-                }
-                let _ = app.emit("update-status", UpdateStatusPayload {
-                    status: "up-to-date".into(),
-                    version: None, body: None, error: None,
-                });
-            }
-        }
-        Err(e) => {
-            if !quiet {
-                let msg = e.to_string();
-                let _ = app.emit("update-status", UpdateStatusPayload {
-                    status: "error".into(),
-                    version: None, body: None,
-                    error: Some(if msg.contains("404") || msg.contains("Not Found") {
-                        "No releases published yet.".into()
-                    } else {
-                        msg
-                    }),
-                });
-            }
-        }
-    }
-}
-
-#[cfg(feature = "updater")]
-#[tauri::command]
-async fn check_for_updates(app: tauri::AppHandle) {
-    do_update_check(&app, false).await;
-}
-
-#[cfg(not(feature = "updater"))]
-#[tauri::command]
-async fn check_for_updates(_app: tauri::AppHandle) {}
-
-#[cfg(feature = "updater")]
-async fn do_install(app: &tauri::AppHandle) -> Result<(), String> {
-    use tauri_plugin_updater::UpdaterExt;
-
-    let state = app.state::<AppState>();
-    if let Some(status_item) = state.tray_status_item() {
-        let _ = status_item.set_text("Downloading update...");
-    }
-
-    let updater = app.updater().map_err(|e| e.to_string())?;
-    let update = updater.check().await
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "No update available".to_string())?;
-
-    let app_progress = app.clone();
-    let mut downloaded: u64 = 0;
-    let mut last_pct: u64 = 101;
-
-    update.download_and_install(
-        move |chunk_length, content_length| {
-            downloaded += chunk_length as u64;
-            let _ = app_progress.emit("update-download-progress", serde_json::json!({
-                "downloaded": downloaded,
-                "total": content_length,
-            }));
-            if let Some(total) = content_length {
-                if total > 0 {
-                    let pct = (downloaded * 100) / total;
-                    if pct != last_pct {
-                        last_pct = pct;
-                        let state = app_progress.state::<AppState>();
-                        if let Some(status_item) = state.tray_status_item() {
-                            let _ = status_item.set_text(format!("Updating... {}%", pct));
-                        }
-                    }
-                }
-            }
-        },
-        || {},
-    ).await.map_err(|e| e.to_string())?;
-
-    Ok(())
-}
-
-#[cfg(feature = "updater")]
-#[tauri::command]
-async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
-    let _ = app.emit("update-status", UpdateStatusPayload {
-        status: "downloading".into(),
-        version: None, body: None, error: None,
-    });
-
-    let result = do_install(&app).await;
-    let state = app.state::<AppState>();
-
-    match result {
-        Ok(()) => {
-            if let Some(status_item) = state.tray_status_item() {
-                let _ = status_item.set_text("Update ready \u{2014} restart to apply");
-            }
-            let _ = app.emit("update-status", UpdateStatusPayload {
-                status: "restart-pending".into(),
-                version: None, body: None, error: None,
-            });
-            Ok(())
-        }
-        Err(e) => {
-            // Restore tray on any failure
-            if let Some(status_item) = state.tray_status_item() {
-                let hotkey = state.hotkey();
-                let _ = status_item.set_text(status_menu_text(Status::Idle, &hotkey));
-            }
-            Err(e)
-        }
-    }
-}
-
-#[cfg(not(feature = "updater"))]
-#[tauri::command]
-async fn install_update(_app: tauri::AppHandle) -> Result<(), String> {
-    Ok(())
-}
-
-#[tauri::command]
-fn restart_app(app: tauri::AppHandle) {
-    app.restart();
-}
-
-#[tauri::command]
-fn get_build_variant() -> String {
-    if cfg!(feature = "mas") {
-        "mas".to_string()
-    } else {
-        "direct".to_string()
-    }
-}
-
-fn create_overlay_window(app: &tauri::AppHandle) -> tauri::Result<()> {
-    let existing = app.get_webview_window("overlay");
-    if existing.is_some() {
-        return Ok(());
-    }
-
-    WebviewWindowBuilder::new(app, "overlay", WebviewUrl::App("/overlay".into()))
-        .title("AudioShift Recording")
-        .inner_size(320.0, 96.0)
-        .resizable(false)
-        .decorations(false)
-        .always_on_top(true)
-        .transparent(true)
-        .visible(false)
-        .focused(false)
-        .skip_taskbar(true)
-        .build()?;
-
-    Ok(())
-}
-
-fn create_settings_window(app: &tauri::AppHandle) -> tauri::Result<()> {
-    if let Some(win) = app.get_webview_window("settings") {
-        let _ = win.show();
-        let _ = win.set_focus();
-        return Ok(());
-    }
-
-    let mut builder = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("/settings".into()))
-        .title("AudioShift")
-        .min_inner_size(520.0, 400.0)
-        .resizable(true)
-        .background_color(Color(32, 32, 32, 255));
-
-    // Restore saved geometry or center with defaults
-    let store = app.store("settings.json").ok();
-    let geom = store.as_ref().and_then(|s| {
-        let x = s.get("settingsGeometry")?;
-        let obj = x.as_object()?;
-        Some((
-            obj.get("x")?.as_f64()?,
-            obj.get("y")?.as_f64()?,
-            obj.get("w")?.as_f64()?,
-            obj.get("h")?.as_f64()?,
-        ))
-    });
-
-    if let Some((x, y, w, h)) = geom {
-        builder = builder
-            .inner_size(w, h)
-            .position(x, y);
-    } else {
-        builder = builder
-            .inner_size(800.0, 600.0)
-            .center();
-    }
-
-    builder.build()?;
-    Ok(())
-}
-
-fn create_onboarding_window(app: &tauri::AppHandle) -> tauri::Result<()> {
-    if let Some(win) = app.get_webview_window("onboarding") {
-        let _ = win.show();
-        let _ = win.set_focus();
-        return Ok(());
-    }
-
-    WebviewWindowBuilder::new(app, "onboarding", WebviewUrl::App("/onboarding".into()))
-        .title("AudioShift Setup")
-        .inner_size(520.0, 440.0)
-        .resizable(false)
-        .center()
-        .background_color(Color(32, 32, 32, 255))
-        .build()?;
-
-    Ok(())
-}
-
-fn status_menu_text(status: Status, hotkey: &str) -> String {
-    let hint = hotkey_display_hint(hotkey);
-    match status {
-        Status::Idle => format!("Ready to Record ({})", hint),
-        Status::Recording => format!("Recording... ({} to stop)", hint),
-        Status::Transcribing => "Transcribing...".to_string(),
-    }
-}
-
-fn hotkey_display_hint(hotkey: &str) -> String {
-    hotkey
-        .replace("CmdOrCtrl", "\u{2318}")
-        .replace("Alt", "\u{2325}")
-        .replace("Shift", "\u{21E7}")
-        .replace("Ctrl", "\u{2303}")
-        .replace("Space", "Space")
-        .replace("+", "")
-}
-
-fn update_tray_for_status(app: &tauri::AppHandle, status: Status) {
-    let state = app.state::<AppState>();
-
-    // Update icon
-    if let Some(tray) = state.tray() {
-        let icon_bytes = match status {
-            Status::Recording => TRAY_ICON_RECORDING,
-            _ => TRAY_ICON_NORMAL,
-        };
-        if let Ok(icon) = Image::from_bytes(icon_bytes) {
-            let _ = tray.set_icon(Some(icon));
-            let _ = tray.set_icon_as_template(true);
-        }
-    }
-
-    // Update status menu item text
-    if let Some(status_item) = state.tray_status_item() {
-        let text = status_menu_text(status, &state.hotkey());
-        let _ = status_item.set_text(text);
-    }
-}
-
-fn onboarding_needed(app: &tauri::AppHandle) -> bool {
-    let store = app.store("settings.json").ok();
-    let completed = store
-        .as_ref()
-        .and_then(|s| s.get("onboardingCompleted"))
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
-    if completed {
-        return false;
-    }
-    let model = model_registry::any_model_ready();
-    let mic = check_microphone_permission() == "granted";
-    let a11y = check_accessibility_permission() == "granted";
-    !model || !mic || !a11y
-}
-
-#[tauri::command]
-fn complete_onboarding(app: tauri::AppHandle) {
-    if let Ok(store) = app.store("settings.json") {
-        let _ = store.set("onboardingCompleted", serde_json::json!(true));
-    }
-}
-
-#[tauri::command]
-fn show_onboarding(app: tauri::AppHandle) {
-    let _ = create_onboarding_window(&app);
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -798,153 +43,59 @@ pub fn run() {
     builder
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
-            get_input_devices,
-            start_monitor,
-            stop_monitor,
-            get_app_status,
-            start_recording,
-            stop_recording,
-            cancel_recording,
-            get_current_hotkey,
-            set_hotkey,
-            check_microphone_permission,
-            request_microphone_permission,
-            check_accessibility_permission,
-            request_accessibility_permission,
-            open_privacy_settings,
-            set_dock_visible,
-            get_work_area_at_cursor,
-            get_history,
-            delete_history_entry,
-            clear_history,
-            get_all_models_status,
-            download_model,
-            delete_model,
-            check_onboarding_needed,
-            complete_onboarding,
-            show_onboarding,
-            get_live_model,
-            set_live_model,
-            get_transcription_language,
-            set_transcription_language,
-            get_translate_to_english,
-            set_translate_to_english,
-            is_download_in_progress,
-            check_for_updates,
-            install_update,
-            restart_app,
-            get_build_variant,
+            commands::get_input_devices,
+            commands::start_monitor,
+            commands::stop_monitor,
+            commands::get_app_status,
+            commands::start_recording,
+            commands::stop_recording,
+            commands::cancel_recording,
+            commands::get_current_hotkey,
+            commands::set_hotkey,
+            commands::check_microphone_permission,
+            commands::request_microphone_permission,
+            commands::check_accessibility_permission,
+            commands::request_accessibility_permission,
+            commands::open_privacy_settings,
+            commands::set_dock_visible,
+            commands::get_work_area_at_cursor,
+            commands::get_history,
+            commands::delete_history_entry,
+            commands::clear_history,
+            commands::get_all_models_status,
+            commands::download_model,
+            commands::delete_model,
+            commands::check_onboarding_needed,
+            commands::complete_onboarding,
+            commands::show_onboarding,
+            commands::get_live_model,
+            commands::set_live_model,
+            commands::get_transcription_language,
+            commands::set_transcription_language,
+            commands::get_translate_to_english,
+            commands::set_translate_to_english,
+            commands::is_download_in_progress,
+            commands::restart_app,
+            commands::get_build_variant,
+            updater::check_for_updates,
+            updater::install_update,
+            plugins::mac_rounded_corners::enable_rounded_corners,
+            plugins::mac_rounded_corners::enable_modern_window_style,
+            plugins::mac_rounded_corners::reposition_traffic_lights,
+            login_item::mas_login_item_is_enabled,
+            login_item::mas_login_item_enable,
+            login_item::mas_login_item_disable,
         ])
         .setup(|app| {
             // Create overlay window (hidden by default)
-            create_overlay_window(&app.handle())?;
+            windows::create_overlay_window(&app.handle())?;
 
-            // Build tray menu
-            let state = app.state::<AppState>();
-            let status_text = status_menu_text(Status::Idle, &state.hotkey());
-
-            let status_item = MenuItemBuilder::with_id("status", &status_text)
-                .enabled(false)
-                .build(app)?;
-            let settings_item =
-                MenuItemBuilder::with_id("settings", "Settings").build(app)?;
-            let quit_item = MenuItemBuilder::with_id("quit", "Quit AudioShift").build(app)?;
-
-            #[allow(unused_mut)]
-            let mut menu_builder = MenuBuilder::new(app)
-                .item(&status_item)
-                .separator()
-                .item(&settings_item);
-
-            #[cfg(feature = "updater")]
-            let updates_item =
-                MenuItemBuilder::with_id("updates", "Check for Updates...").build(app)?;
-            #[cfg(feature = "updater")]
-            {
-                menu_builder = menu_builder.item(&updates_item);
-            }
-
-            let menu = menu_builder
-                .separator()
-                .item(&quit_item)
-                .build()?;
-
-            // Build tray icon
-            let tray = TrayIconBuilder::new()
-                .icon(Image::from_bytes(TRAY_ICON_NORMAL).expect("failed to load tray icon"))
-                .icon_as_template(true)
-                .menu(&menu)
-                .tooltip("AudioShift")
-                .on_menu_event(move |app, event| match event.id().as_ref() {
-                    "settings" => {
-                        let _ = create_settings_window(app);
-                    }
-                    #[cfg(feature = "updater")]
-                    "updates" => {
-                        // Store pending section so fresh windows pick it up on mount
-                        if let Ok(store) = app.store("settings.json") {
-                            let _ = store.set("pendingSection", serde_json::json!("updates"));
-                        }
-                        let _ = create_settings_window(app);
-                        app.emit("navigate-section", "updates").ok();
-                        let handle = app.clone();
-                        tauri::async_runtime::spawn(async move {
-                            do_update_check(&handle, false).await;
-                        });
-                    }
-                    "quit" => {
-                        app.exit(0);
-                    }
-                    _ => {}
-                })
-                .build(app)?;
-
-            // Store tray handle for dynamic updates
-            app.state::<AppState>().set_tray(tray, status_item);
-            #[cfg(feature = "updater")]
-            app.state::<AppState>().set_tray_updates_item(updates_item);
-
-            // Listen for status changes to update tray
-            let handle = app.handle().clone();
-            app.listen("status-changed", move |event| {
-                let status = match event.payload().trim_matches('"') {
-                    "recording" => Status::Recording,
-                    "transcribing" => Status::Transcribing,
-                    _ => Status::Idle,
-                };
-                update_tray_for_status(&handle, status);
-            });
-
-            // Listen for download progress to update tray status text
-            let handle = app.handle().clone();
-            app.listen("model-download-progress", move |event| {
-                let state = handle.state::<AppState>();
-                if let Some(status_item) = state.tray_status_item() {
-                    if let Ok(payload) = serde_json::from_str::<serde_json::Value>(event.payload()) {
-                        let file = payload.get("file").and_then(|v| v.as_str()).unwrap_or("");
-                        if file == "complete" {
-                            let text = status_menu_text(Status::Idle, &state.hotkey());
-                            let _ = status_item.set_text(text);
-                        } else {
-                            let overall_downloaded = payload.get("overall_downloaded").and_then(|v| v.as_u64()).unwrap_or(0);
-                            let overall_total = payload.get("overall_total").and_then(|v| v.as_u64()).unwrap_or(0);
-                            let dl_mb = overall_downloaded / (1024 * 1024);
-                            let total_mb = overall_total / (1024 * 1024);
-                            if total_mb > 0 {
-                                let _ = status_item.set_text(format!("Downloading model... {} / {} MB", dl_mb, total_mb));
-                            } else {
-                                let _ = status_item.set_text("Downloading model...".to_string());
-                            }
-                        }
-                    }
-                }
-            });
+            // Build tray menu and listeners
+            tray::build_tray(app)?;
 
             // Check if onboarding is needed
-            if onboarding_needed(&app.handle()) {
-                let _ = create_onboarding_window(&app.handle());
-                // Download is triggered by the onboarding frontend after its
-                // event listener is ready — no background spawn here.
+            if tray::onboarding_needed(&app.handle()) {
+                let _ = windows::create_onboarding_window(&app.handle());
             }
 
             // Register global hotkey (restore saved or use default)
@@ -959,6 +110,21 @@ pub fn run() {
                 app.state::<AppState>().set_hotkey(key.clone());
             } else {
                 hotkey::register_default_hotkey(app)?;
+            }
+
+            // Preload AI model in background for faster first transcription
+            {
+                let live_model = app
+                    .store("settings.json")
+                    .ok()
+                    .and_then(|s| s.get("liveModel"))
+                    .and_then(|v| v.as_str().map(String::from))
+                    .unwrap_or_else(|| model_registry::DEFAULT_MODEL_ID.to_string());
+                tokio::task::spawn_blocking(move || {
+                    if let Err(e) = transcriber::preload_model(&live_model) {
+                        eprintln!("[audioshift] Model preload failed: {}", e);
+                    }
+                });
             }
 
             // Periodic update check (hourly, quiet) — direct builds only
@@ -976,7 +142,7 @@ pub fn run() {
                             .unwrap_or(true);
 
                         if auto_update {
-                            do_update_check(&handle, true).await;
+                            updater::do_update_check(&handle, true).await;
                         }
 
                         tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
