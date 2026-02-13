@@ -23,10 +23,6 @@
     "core:window:allow-set-size",
     "core:window:allow-outer-position",
     "core:window:allow-outer-size",
-    "core:window:allow-scale-factor",
-    "autostart:allow-enable",
-    "autostart:allow-disable",
-    "autostart:allow-is-enabled",
-    "updater:default"
+    "core:window:allow-scale-factor"
   ]
 }

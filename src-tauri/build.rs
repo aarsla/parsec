@@ -7,6 +7,9 @@ fn main() {
         cc::Build::new()
             .file("src/permissions_helper.m")
             .compile("permissions_helper");
+        cc::Build::new()
+            .file("src/clipboard_helper.m")
+            .compile("clipboard_helper");
         println!("cargo:rustc-link-lib=framework=AppKit");
         println!("cargo:rustc-link-lib=framework=CoreGraphics");
         println!("cargo:rustc-link-lib=framework=AVFoundation");
@@ -64,7 +67,14 @@ fn main() {
         perms_json.join(",\n")
     );
 
-    std::fs::write("capabilities/default.json", cap).expect("failed to write capabilities");
+    // Only write if content changed — avoids triggering Tauri's file watcher loop in dev mode
+    let path = "capabilities/default.json";
+    let needs_write = std::fs::read_to_string(path)
+        .map(|existing| existing != cap)
+        .unwrap_or(true);
+    if needs_write {
+        std::fs::write(path, cap).expect("failed to write capabilities");
+    }
 
     tauri_build::build();
 }

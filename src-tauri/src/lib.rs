@@ -261,13 +261,24 @@ fn set_dock_visible(app: tauri::AppHandle, visible: bool) -> Result<(), String> 
 fn open_privacy_settings(pane: String) {
     #[cfg(target_os = "macos")]
     {
-        use std::process::Command;
+        use objc2_foundation::NSString;
+
         let url = match pane.as_str() {
             "microphone" => "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone",
             "accessibility" => "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
             _ => return,
         };
-        let _ = Command::new("open").arg(url).spawn();
+
+        unsafe {
+            let url_ns = NSString::from_str(url);
+            let nsurl: *mut objc2::runtime::AnyObject =
+                objc2::msg_send![objc2::class!(NSURL), URLWithString: &*url_ns];
+            if !nsurl.is_null() {
+                let workspace: *mut objc2::runtime::AnyObject =
+                    objc2::msg_send![objc2::class!(NSWorkspace), sharedWorkspace];
+                let _: bool = objc2::msg_send![workspace, openURL: nsurl];
+            }
+        }
     }
 }
 

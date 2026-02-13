@@ -39,12 +39,19 @@ src/
 
 ## Commands
 
+Use `make` targets for common operations:
+
 ```bash
-pnpm tauri dev     # Dev mode with hot reload
-pnpm tauri build   # Production build (set TAURI_SIGNING_PRIVATE_KEY_PATH for updater)
-cargo check --manifest-path src-tauri/Cargo.toml  # Rust check only
-npx tsc --noEmit   # TypeScript check only
+make dev            # Dev mode with hot reload
+make build          # Production build (direct distribution)
+make build-mas      # Mac App Store build
+make check          # Rust check (direct)
+make check-mas      # Rust check (MAS)
+make check-ts       # TypeScript check
+make check-all      # All checks
 ```
+
+Note: `make dev` runs a bare binary without an `.app` bundle. macOS Accessibility permissions are per-binary and get lost on recompile. If paste stops working in dev, rebuild as `.app` bundle (`pnpm tauri build --debug --bundles app --target aarch64-apple-darwin`) and re-grant Accessibility.
 
 ## Conventions
 

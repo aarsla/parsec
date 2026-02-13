@@ -1,5 +1,8 @@
 {
   "identifier": "io.audioshift.app",
+  "app": {
+    "macOSPrivateApi": false
+  },
   "plugins": {},
   "bundle": {
     "createUpdaterArtifacts": false,
