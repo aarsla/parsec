@@ -1,14 +1,52 @@
-import { Box, Download, Loader2, Trash2, ChevronDown } from "lucide-react";
+import { Box, Download, Loader2, Trash2, ChevronDown, Languages } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { SectionCard, SettingRow, formatBytes, type ModelStatusEntry, type DownloadProgress } from "./shared";
+
+const LANGUAGES = [
+  { value: "auto", label: "Auto-detect" },
+  { value: "en", label: "English" },
+  { value: "es", label: "Spanish" },
+  { value: "fr", label: "French" },
+  { value: "de", label: "German" },
+  { value: "zh", label: "Chinese" },
+  { value: "ja", label: "Japanese" },
+  { value: "ko", label: "Korean" },
+  { value: "pt", label: "Portuguese" },
+  { value: "ru", label: "Russian" },
+  { value: "ar", label: "Arabic" },
+  { value: "hi", label: "Hindi" },
+  { value: "it", label: "Italian" },
+  { value: "nl", label: "Dutch" },
+  { value: "pl", label: "Polish" },
+  { value: "tr", label: "Turkish" },
+  { value: "sv", label: "Swedish" },
+  { value: "da", label: "Danish" },
+  { value: "no", label: "Norwegian" },
+  { value: "fi", label: "Finnish" },
+  { value: "cs", label: "Czech" },
+  { value: "el", label: "Greek" },
+  { value: "hu", label: "Hungarian" },
+  { value: "ro", label: "Romanian" },
+  { value: "th", label: "Thai" },
+  { value: "vi", label: "Vietnamese" },
+  { value: "uk", label: "Ukrainian" },
+  { value: "id", label: "Indonesian" },
+  { value: "ms", label: "Malay" },
+  { value: "he", label: "Hebrew" },
+] as const;
 
 interface Props {
   models: ModelStatusEntry[];
   liveModel: string;
   downloadProgress: DownloadProgress | null;
   downloadingModelId: string | null;
+  transcriptionLanguage: string;
+  translateToEnglish: boolean;
   onDownloadModel: (modelId: string) => void;
   onDeleteModel: (modelId: string) => void;
   onLiveModelChange: (modelId: string) => void;
+  onLanguageChange: (language: string) => void;
+  onTranslateChange: (enabled: boolean) => void;
 }
 
 function EngineBadge({ engine }: { engine: string }) {
@@ -70,10 +108,19 @@ export default function ModelPage({
   liveModel,
   downloadProgress,
   downloadingModelId,
+  transcriptionLanguage,
+  translateToEnglish,
   onDownloadModel,
   onDeleteModel,
   onLiveModelChange,
+  onLanguageChange,
+  onTranslateChange,
 }: Props) {
+  const liveModelEntry = models.find((m) => m.id === liveModel);
+  const isWhisper = liveModelEntry?.engine === "whisper";
+  const isTurbo = liveModel.includes("turbo");
+  const showTranslate = isWhisper && !isTurbo && transcriptionLanguage !== "en";
+
   return (
     <div className="space-y-4">
       <SectionCard title="Model Assignment" icon={<Box size={14} />}>
@@ -84,6 +131,44 @@ export default function ModelPage({
           label="Live Recording"
         />
       </SectionCard>
+
+      {isWhisper && (
+        <SectionCard title="Language" icon={<Languages size={14} />}>
+          <SettingRow
+            label="Transcription Language"
+            description="Language of the audio being recorded"
+          >
+            <div className="relative">
+              <select
+                value={transcriptionLanguage}
+                onChange={(e) => onLanguageChange(e.target.value)}
+                className="appearance-none bg-secondary border border-border rounded-md px-3 py-1.5 pr-7 text-sm text-foreground cursor-pointer hover:border-primary/40 transition-colors"
+              >
+                {LANGUAGES.map((lang) => (
+                  <option key={lang.value} value={lang.value}>
+                    {lang.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                size={12}
+                className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground"
+              />
+            </div>
+          </SettingRow>
+          {showTranslate && (
+            <SettingRow
+              label="Translate to English"
+              description="Output English text regardless of spoken language"
+            >
+              <Switch
+                checked={translateToEnglish}
+                onCheckedChange={onTranslateChange}
+              />
+            </SettingRow>
+          )}
+        </SectionCard>
+      )}
 
       <SectionCard title="Available Models" icon={<Download size={14} />}>
         <div className="divide-y divide-border">

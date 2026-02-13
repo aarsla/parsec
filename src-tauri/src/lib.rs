@@ -71,14 +71,29 @@ async fn stop_recording(
     state.set_status(state::Status::Transcribing);
     let _ = app.emit("status-changed", "transcribing");
 
-    let live_model = app
-        .store("settings.json")
-        .ok()
+    let store = app.store("settings.json").ok();
+
+    let live_model = store
+        .as_ref()
         .and_then(|s| s.get("liveModel"))
         .and_then(|v| v.as_str().map(String::from))
         .unwrap_or_else(|| model_registry::DEFAULT_MODEL_ID.to_string());
 
-    let text = transcriber::transcribe_from_samples(&app, samples, &live_model)
+    // Read language settings (only meaningful for Whisper models)
+    let language = store
+        .as_ref()
+        .and_then(|s| s.get("transcriptionLanguage"))
+        .and_then(|v| v.as_str().map(String::from))
+        .unwrap_or_else(|| "auto".to_string());
+    let language = if language == "auto" { None } else { Some(language) };
+
+    let translate = store
+        .as_ref()
+        .and_then(|s| s.get("translateToEnglish"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    let text = transcriber::transcribe_from_samples(&app, samples, &live_model, language, translate)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -371,6 +386,40 @@ fn set_live_model(app: tauri::AppHandle, model_id: String) -> Result<(), String>
     let store = app.store("settings.json").map_err(|e| e.to_string())?;
     store.set("liveModel", serde_json::json!(model_id));
     let _ = app.emit("live-model-changed", &model_id);
+    Ok(())
+}
+
+#[tauri::command]
+fn get_transcription_language(app: tauri::AppHandle) -> String {
+    app.store("settings.json")
+        .ok()
+        .and_then(|s| s.get("transcriptionLanguage"))
+        .and_then(|v| v.as_str().map(String::from))
+        .unwrap_or_else(|| "auto".to_string())
+}
+
+#[tauri::command]
+fn set_transcription_language(app: tauri::AppHandle, language: String) -> Result<(), String> {
+    let store = app.store("settings.json").map_err(|e| e.to_string())?;
+    store.set("transcriptionLanguage", serde_json::json!(language));
+    let _ = app.emit("transcription-language-changed", &language);
+    Ok(())
+}
+
+#[tauri::command]
+fn get_translate_to_english(app: tauri::AppHandle) -> bool {
+    app.store("settings.json")
+        .ok()
+        .and_then(|s| s.get("translateToEnglish"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+}
+
+#[tauri::command]
+fn set_translate_to_english(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    let store = app.store("settings.json").map_err(|e| e.to_string())?;
+    store.set("translateToEnglish", serde_json::json!(enabled));
+    let _ = app.emit("translate-to-english-changed", enabled);
     Ok(())
 }
 
@@ -730,6 +779,10 @@ pub fn run() {
             show_onboarding,
             get_live_model,
             set_live_model,
+            get_transcription_language,
+            set_transcription_language,
+            get_translate_to_english,
+            set_translate_to_english,
             is_download_in_progress,
             check_for_updates,
             install_update,

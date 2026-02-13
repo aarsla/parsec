@@ -53,6 +53,8 @@ export default function Settings() {
   const [liveModel, setLiveModel] = useState("parakeet-tdt-0.6b-v3");
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
   const [downloadingModelId, setDownloadingModelId] = useState<string | null>(null);
+  const [transcriptionLanguage, setTranscriptionLanguage] = useState("auto");
+  const [translateToEnglish, setTranslateToEnglish] = useState(false);
   const [monitorLevel, setMonitorLevel] = useState(0);
   const monitorSmoothed = useRef(0);
   const monitorRaf = useRef(0);
@@ -77,6 +79,8 @@ export default function Settings() {
     invoke<string>("get_current_hotkey").then(setHotkey);
     invoke<ModelStatusEntry[]>("get_all_models_status").then(setModels);
     invoke<string>("get_live_model").then(setLiveModel);
+    invoke<string>("get_transcription_language").then(setTranscriptionLanguage);
+    invoke<boolean>("get_translate_to_english").then(setTranslateToEnglish);
     checkPermissions();
     loadAppSettings();
 
@@ -278,6 +282,11 @@ export default function Settings() {
         setPasteMode(savedPasteMode);
       }
 
+      const savedLanguage = await store.get<string>("transcriptionLanguage");
+      if (savedLanguage) setTranscriptionLanguage(savedLanguage);
+      const savedTranslate = await store.get<boolean>("translateToEnglish");
+      if (savedTranslate !== null && savedTranslate !== undefined) setTranslateToEnglish(savedTranslate);
+
       const savedAutoUpdate = await store.get<boolean>("autoUpdate");
       if (savedAutoUpdate !== null && savedAutoUpdate !== undefined) {
         setAutoUpdate(savedAutoUpdate);
@@ -454,6 +463,24 @@ export default function Settings() {
     }
   };
 
+  const handleLanguageChange = async (language: string) => {
+    setTranscriptionLanguage(language);
+    try {
+      await invoke("set_transcription_language", { language });
+    } catch (e) {
+      console.error("Failed to save transcription language:", e);
+    }
+  };
+
+  const handleTranslateChange = async (enabled: boolean) => {
+    setTranslateToEnglish(enabled);
+    try {
+      await invoke("set_translate_to_english", { enabled });
+    } catch (e) {
+      console.error("Failed to save translate setting:", e);
+    }
+  };
+
   const handleAutoUpdateChange = async (enabled: boolean) => {
     setAutoUpdate(enabled);
     try {
@@ -492,7 +519,7 @@ export default function Settings() {
     { id: "recording", label: "Recording", icon: <Mic size={16} /> },
     { id: "output", label: "Output", icon: <ClipboardPaste size={16} /> },
     { id: "history", label: "History", icon: <Clock size={16} /> },
-    { id: "model", label: "Model", icon: <Box size={16} /> },
+    { id: "model", label: "Transcription", icon: <Box size={16} /> },
     { id: "updates", label: "Updates", icon: <Download size={16} /> },
     { id: "about", label: "About", icon: <Info size={16} /> },
   ];
@@ -561,9 +588,13 @@ export default function Settings() {
             liveModel={liveModel}
             downloadProgress={downloadProgress}
             downloadingModelId={downloadingModelId}
+            transcriptionLanguage={transcriptionLanguage}
+            translateToEnglish={translateToEnglish}
             onDownloadModel={handleDownloadModel}
             onDeleteModel={handleDeleteModel}
             onLiveModelChange={handleLiveModelChange}
+            onLanguageChange={handleLanguageChange}
+            onTranslateChange={handleTranslateChange}
           />
         );
       case "updates":

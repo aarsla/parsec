@@ -70,6 +70,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          SOURCE_DATE_EPOCH: "1"
         with:
           tagName: v__VERSION__
           releaseName: AudioShift v__VERSION__

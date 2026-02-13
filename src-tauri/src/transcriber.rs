@@ -292,7 +292,12 @@ fn load_whisper(model_id: &str) -> Result<()> {
     Ok(())
 }
 
-fn transcribe_whisper(samples: Vec<f32>, model_id: String) -> Result<String> {
+fn transcribe_whisper(
+    samples: Vec<f32>,
+    model_id: String,
+    language: Option<String>,
+    translate: bool,
+) -> Result<String> {
     load_whisper(&model_id)?;
 
     let lock = WHISPER_CTX.lock();
@@ -303,7 +308,8 @@ fn transcribe_whisper(samples: Vec<f32>, model_id: String) -> Result<String> {
 
     let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
     params.set_n_threads(num_cpus::get().min(8) as i32);
-    params.set_language(Some("en"));
+    params.set_language(language.as_deref());
+    params.set_translate(translate);
     params.set_print_progress(false);
     params.set_print_realtime(false);
     params.set_print_timestamps(false);
@@ -332,6 +338,8 @@ pub async fn transcribe_from_samples(
     app: &tauri::AppHandle,
     samples: Vec<f32>,
     model_id: &str,
+    language: Option<String>,
+    translate: bool,
 ) -> Result<String> {
     ensure_model(app, model_id).await?;
 
@@ -346,7 +354,7 @@ pub async fn transcribe_from_samples(
         }
         Engine::Whisper => {
             let mid = model_id.to_string();
-            tokio::task::spawn_blocking(move || transcribe_whisper(samples, mid)).await??
+            tokio::task::spawn_blocking(move || transcribe_whisper(samples, mid, language, translate)).await??
         }
     };
 
