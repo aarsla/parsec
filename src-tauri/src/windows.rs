@@ -64,7 +64,7 @@ pub fn create_settings_window(app: &tauri::AppHandle) -> tauri::Result<()> {
 
     let mut builder = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("/settings".into()))
         .title("AudioShift")
-        .min_inner_size(520.0, 400.0)
+        .min_inner_size(800.0, 720.0)
         .resizable(true)
         .background_color(Color(32, 32, 32, 255));
 
@@ -87,7 +87,7 @@ pub fn create_settings_window(app: &tauri::AppHandle) -> tauri::Result<()> {
             .position(x, y);
     } else {
         builder = builder
-            .inner_size(800.0, 600.0)
+            .inner_size(800.0, 720.0)
             .center();
     }
 

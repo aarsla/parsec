@@ -1,10 +1,16 @@
-.PHONY: dev build build-mas run-mas check check-mas check-ts check-all
+.PHONY: dev build run build-mas run-mas check check-mas check-ts check-all
 
 dev:
 	pnpm tauri dev
 
 build:
 	pnpm tauri build
+
+run: build
+	-tccutil reset Microphone
+	-tccutil reset Accessibility
+	-rm -f "$(HOME)/Library/Application Support/com.aarsla.audioshift/settings.json"
+	open src-tauri/target/release/bundle/macos/AudioShift.app
 
 build-mas:
 	pnpm tauri build \
