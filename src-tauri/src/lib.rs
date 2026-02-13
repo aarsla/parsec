@@ -95,7 +95,11 @@ pub fn run() {
 
             // Check if onboarding is needed
             if tray::onboarding_needed(&app.handle()) {
-                let _ = windows::create_onboarding_window(&app.handle());
+                eprintln!("[audioshift] Opening onboarding window...");
+                match windows::create_onboarding_window(&app.handle()) {
+                    Ok(()) => eprintln!("[audioshift] Onboarding window created"),
+                    Err(e) => eprintln!("[audioshift] Onboarding window FAILED: {}", e),
+                }
             }
 
             // Register global hotkey (restore saved or use default)
@@ -120,10 +124,12 @@ pub fn run() {
                     .and_then(|s| s.get("liveModel"))
                     .and_then(|v| v.as_str().map(String::from))
                     .unwrap_or_else(|| model_registry::DEFAULT_MODEL_ID.to_string());
-                tokio::task::spawn_blocking(move || {
-                    if let Err(e) = transcriber::preload_model(&live_model) {
-                        eprintln!("[audioshift] Model preload failed: {}", e);
-                    }
+                tauri::async_runtime::spawn(async move {
+                    tokio::task::spawn_blocking(move || {
+                        if let Err(e) = transcriber::preload_model(&live_model) {
+                            eprintln!("[audioshift] Model preload failed: {}", e);
+                        }
+                    }).await.ok();
                 });
             }
 

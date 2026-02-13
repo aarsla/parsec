@@ -63,13 +63,15 @@ pub fn onboarding_needed(app: &tauri::AppHandle) -> bool {
         .and_then(|s| s.get("onboardingCompleted"))
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
-    if completed {
-        return false;
-    }
     let model = model_registry::any_model_ready();
-    let mic = commands::check_microphone_permission() == "granted";
-    let a11y = commands::check_accessibility_permission() == "granted";
-    !model || !mic || !a11y
+    let mic = commands::check_microphone_permission();
+    let a11y = commands::check_accessibility_permission();
+    let needed = !completed && (!model || mic != "granted" || a11y != "granted");
+    eprintln!(
+        "[audioshift] onboarding_needed: completed={}, model={}, mic={}, a11y={} → {}",
+        completed, model, mic, a11y, needed
+    );
+    needed
 }
 
 pub fn build_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {

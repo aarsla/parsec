@@ -383,10 +383,12 @@ pub fn set_live_model(app: tauri::AppHandle, model_id: String) -> Result<(), Str
 
     // Preload in background so first transcription is instant
     let mid = model_id.clone();
-    tokio::task::spawn_blocking(move || {
-        if let Err(e) = transcriber::preload_model(&mid) {
-            eprintln!("[audioshift] Model preload failed: {}", e);
-        }
+    tauri::async_runtime::spawn(async move {
+        tokio::task::spawn_blocking(move || {
+            if let Err(e) = transcriber::preload_model(&mid) {
+                eprintln!("[audioshift] Model preload failed: {}", e);
+            }
+        }).await.ok();
     });
 
     Ok(())

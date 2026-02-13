@@ -102,13 +102,19 @@ pub fn create_onboarding_window(app: &tauri::AppHandle) -> tauri::Result<()> {
         return Ok(());
     }
 
-    WebviewWindowBuilder::new(app, "onboarding", WebviewUrl::App("/onboarding".into()))
+    let win = WebviewWindowBuilder::new(app, "onboarding", WebviewUrl::App("/onboarding".into()))
         .title("AudioShift Setup")
         .inner_size(520.0, 440.0)
         .resizable(false)
         .center()
+        .visible(true)
+        .focused(true)
         .background_color(Color(32, 32, 32, 255))
         .build()?;
+
+    // Ensure the window is visible and focused (tray-only apps may not auto-activate)
+    let _ = win.show();
+    let _ = win.set_focus();
 
     Ok(())
 }
