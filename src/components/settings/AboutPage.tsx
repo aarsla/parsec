@@ -21,7 +21,7 @@ export default function AboutPage({ liveModelName, liveModelSize }: { liveModelN
           <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
             Runs entirely on your device. Nothing leaves your machine.
           </p>
-          <p className="text-[11px] text-muted-foreground/60 mt-1 font-mono">v0.1.5</p>
+          <p className="text-[11px] text-muted-foreground/60 mt-1 font-mono">v0.1.6</p>
         </div>
         <div className="shrink-0 flex items-center pr-2">
           <div className="flex items-center gap-[3px] h-12">
@@ -53,7 +53,7 @@ export default function AboutPage({ liveModelName, liveModelSize }: { liveModelN
       <SectionCard title="About AudioShift" icon={<Info size={14} />}>
         <SettingRow label="Version" description="Current app version">
           <span className="text-sm text-muted-foreground font-mono">
-            0.1.5
+            0.1.6
           </span>
         </SettingRow>
         <Separator />
