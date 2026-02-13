@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AudioShift Screenshot 2</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0a0a0a;
+    color: #fff;
+    position: relative;
+  }
+
+  /* Subtle radial glow behind the app window */
+  .bg-glow {
+    position: absolute;
+    width: 1200px;
+    height: 1200px;
+    right: 100px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: radial-gradient(circle, rgba(210, 140, 40, 0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    height: 100%;
+    padding: 7vh 5.5vw;
+    gap: 4vw;
+  }
+
+  /* Left side — text */
+  .text-side {
+    flex: 0 0 38%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-bottom: 40px;
+  }
+
+  .headline {
+    font-size: 5vw;
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin-bottom: 3vh;
+    white-space: nowrap;
+  }
+
+  .headline .accent {
+    background: linear-gradient(135deg, #e8940a, #d4780a);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .tagline {
+    font-size: 1.1vw;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #e8940a;
+    margin-bottom: 24px;
+  }
+
+  .subtitle {
+    font-size: 1.5vw;
+    font-weight: 400;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.45);
+    margin-bottom: 5vh;
+    max-width: 90%;
+  }
+
+  .features {
+    display: flex;
+    flex-direction: column;
+    gap: 2.2vh;
+  }
+
+  .feature {
+    display: flex;
+    align-items: center;
+    gap: 1vw;
+  }
+
+  .feature-icon {
+    width: 2.2vw;
+    height: 2.2vw;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e8940a, #c47008);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .feature-icon svg {
+    width: 1.1vw;
+    height: 20px;
+    fill: none;
+    stroke: #fff;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .feature-text {
+    font-size: 1.3vw;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  /* Right side — app mock */
+  .app-side {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  /* Main settings window */
+  .app-window {
+    width: 960px;
+    background: #161616;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    box-shadow:
+      0 40px 100px rgba(0, 0, 0, 0.6),
+      0 0 0 1px rgba(255, 255, 255, 0.05);
+    transform: perspective(2000px) rotateY(-4deg) rotateX(1deg);
+  }
+
+  /* Title bar */
+  .titlebar {
+    height: 48px;
+    background: #1a1a1a;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 8px;
+  }
+
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot-red { background: #ff5f57; }
+  .dot-yellow { background: #ffbd2e; }
+  .dot-green { background: #28c840; }
+
+  .titlebar-text {
+    flex: 1;
+    text-align: center;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: 500;
+  }
+
+  /* Window body */
+  .window-body {
+    display: flex;
+    height: 620px;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 200px;
+    background: #131313;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: 500;
+  }
+
+  .sidebar-item.active {
+    background: rgba(232, 148, 10, 0.12);
+    color: #e8940a;
+  }
+
+  .sidebar-item svg {
+    width: 15px;
+    height: 15px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex-shrink: 0;
+  }
+
+  /* Main content */
+  .main-content {
+    flex: 1;
+    padding: 28px 32px;
+    overflow: hidden;
+  }
+
+  .section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card {
+    background: #1c1c1c;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-header svg {
+    width: 14px;
+    height: 14px;
+    stroke: rgba(255, 255, 255, 0.4);
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .card-row {
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  }
+
+  .card-row:last-child { border-bottom: none; }
+
+  .card-row-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .card-row-desc {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.35);
+    margin-top: 2px;
+  }
+
+  .badge {
+    padding: 5px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    background: #222;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .badge-accent {
+    background: rgba(232, 148, 10, 0.15);
+    border-color: rgba(232, 148, 10, 0.25);
+    color: #e8940a;
+  }
+
+  /* Model row */
+  .model-row {
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  }
+
+  .model-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #28c840;
+    flex-shrink: 0;
+  }
+
+  .model-dot.inactive { background: rgba(255, 255, 255, 0.15); }
+
+  .model-info { flex: 1; }
+
+  .model-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .engine-badge {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .engine-whisper {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+  }
+
+  .engine-parakeet {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+  }
+
+  .model-desc {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.35);
+    margin-top: 2px;
+  }
+
+  .model-size {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.25);
+    margin-top: 2px;
+  }
+
+  /* Floating overlay mock */
+  .overlay-mock {
+    position: absolute;
+    bottom: 60px;
+    right: -40px;
+    width: 380px;
+    background: rgba(22, 22, 22, 0.92);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 28px;
+    padding: 20px 28px;
+    box-shadow:
+      0 20px 60px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.05);
+    z-index: 10;
+  }
+
+  .overlay-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .rec-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+  }
+
+  .rec-text {
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: 500;
+  }
+
+  .rec-timer {
+    margin-left: auto;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.35);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .overlay-wave {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 36px;
+  }
+
+  .wave-bar {
+    width: 3px;
+    border-radius: 2px;
+    background: linear-gradient(to top, #e8940a, #d4780a);
+  }
+
+  .overlay-hint {
+    text-align: center;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.25);
+    margin-top: 10px;
+  }
+
+  .key-hint {
+    display: inline-block;
+    padding: 1px 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    font-size: 11px;
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-glow"></div>
+
+<div class="content">
+  <!-- Left: Text -->
+  <div class="text-side">
+    <div class="tagline">Local AI models</div>
+    <h1 class="headline">
+      Your voice,<br><span class="accent">instantly typed.</span>
+    </h1>
+    <p class="subtitle">
+      Local AI transcription that works in any app. Private, offline, and blazing fast.
+    </p>
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <span class="feature-text">100% local — nothing leaves your Mac</span>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <span class="feature-text">99 languages with auto-detection</span>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <span class="feature-text">One hotkey — speak and it types for you</span>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <span class="feature-text">Talk to ChatGPT, Claude, or any AI</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: App mock -->
+  <div class="app-side">
+    <div class="app-window">
+      <div class="titlebar">
+        <div class="dot dot-red"></div>
+        <div class="dot dot-yellow"></div>
+        <div class="dot dot-green"></div>
+        <span class="titlebar-text">AudioShift — Settings</span>
+        <div style="width: 52px"></div>
+      </div>
+      <div class="window-body">
+        <!-- Sidebar -->
+        <div class="sidebar">
+          <div class="sidebar-item">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            General
+          </div>
+          <div class="sidebar-item">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Appearance
+          </div>
+          <div class="sidebar-item">
+            <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+            Recording
+          </div>
+          <div class="sidebar-item active">
+            <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            Transcription
+          </div>
+          <div class="sidebar-item">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Output
+          </div>
+          <div class="sidebar-item">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            History
+          </div>
+          <div class="sidebar-item">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Updates
+          </div>
+          <div class="sidebar-item">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            About
+          </div>
+        </div>
+
+        <!-- Main -->
+        <div class="main-content">
+          <!-- Model Assignment -->
+          <div class="card">
+            <div class="card-header">
+              <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+              Model Assignment
+            </div>
+            <div class="card-row">
+              <div>
+                <div class="card-row-label">Live Recording</div>
+                <div class="card-row-desc">Only downloaded models are available</div>
+              </div>
+              <div class="badge">Whisper Large v3 Turbo (Q5)</div>
+            </div>
+          </div>
+
+          <!-- Language -->
+          <div class="card">
+            <div class="card-header">
+              <svg viewBox="0 0 24 24"><path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="M22 22l-5-10-5 10"/><path d="M14 18h6"/></svg>
+              Language
+            </div>
+            <div class="card-row">
+              <div>
+                <div class="card-row-label">Transcription Language</div>
+                <div class="card-row-desc">Language of the audio being recorded</div>
+              </div>
+              <div class="badge badge-accent">Auto-detect</div>
+            </div>
+          </div>
+
+          <!-- Available Models -->
+          <div class="card">
+            <div class="card-header">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Available Models
+            </div>
+            <div class="model-row">
+              <div class="model-dot"></div>
+              <div class="model-info">
+                <div class="model-name">Parakeet TDT 0.6b v3 <span class="engine-badge engine-parakeet">parakeet</span></div>
+                <div class="model-desc">Fast English-only transcription</div>
+                <div class="model-size">679 MB on disk</div>
+              </div>
+            </div>
+            <div class="model-row">
+              <div class="model-dot"></div>
+              <div class="model-info">
+                <div class="model-name">Whisper Large v3 Turbo (Q5) <span class="engine-badge engine-whisper">whisper</span></div>
+                <div class="model-desc">Fast multilingual, best balance of speed and accuracy</div>
+                <div class="model-size">574 MB on disk</div>
+              </div>
+            </div>
+            <div class="model-row">
+              <div class="model-dot inactive"></div>
+              <div class="model-info">
+                <div class="model-name">Whisper Medium (Q5) <span class="engine-badge engine-whisper">whisper</span></div>
+                <div class="model-desc">Good multilingual accuracy, moderate speed</div>
+                <div class="model-size">~539 MB download</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Floating overlay -->
+    <div class="overlay-mock">
+      <div class="overlay-top">
+        <div class="rec-dot"></div>
+        <span class="rec-text">Recording...</span>
+        <span class="rec-timer">0:04</span>
+      </div>
+      <div class="overlay-wave">
+        <div class="wave-bar" style="height: 8px"></div>
+        <div class="wave-bar" style="height: 14px"></div>
+        <div class="wave-bar" style="height: 22px"></div>
+        <div class="wave-bar" style="height: 12px"></div>
+        <div class="wave-bar" style="height: 28px"></div>
+        <div class="wave-bar" style="height: 34px"></div>
+        <div class="wave-bar" style="height: 20px"></div>
+        <div class="wave-bar" style="height: 30px"></div>
+        <div class="wave-bar" style="height: 36px"></div>
+        <div class="wave-bar" style="height: 24px"></div>
+        <div class="wave-bar" style="height: 32px"></div>
+        <div class="wave-bar" style="height: 18px"></div>
+        <div class="wave-bar" style="height: 26px"></div>
+        <div class="wave-bar" style="height: 34px"></div>
+        <div class="wave-bar" style="height: 16px"></div>
+        <div class="wave-bar" style="height: 28px"></div>
+        <div class="wave-bar" style="height: 22px"></div>
+        <div class="wave-bar" style="height: 10px"></div>
+        <div class="wave-bar" style="height: 18px"></div>
+        <div class="wave-bar" style="height: 30px"></div>
+        <div class="wave-bar" style="height: 26px"></div>
+        <div class="wave-bar" style="height: 14px"></div>
+        <div class="wave-bar" style="height: 20px"></div>
+        <div class="wave-bar" style="height: 32px"></div>
+        <div class="wave-bar" style="height: 24px"></div>
+        <div class="wave-bar" style="height: 16px"></div>
+        <div class="wave-bar" style="height: 10px"></div>
+        <div class="wave-bar" style="height: 22px"></div>
+        <div class="wave-bar" style="height: 28px"></div>
+        <div class="wave-bar" style="height: 18px"></div>
+        <div class="wave-bar" style="height: 12px"></div>
+        <div class="wave-bar" style="height: 8px"></div>
+      </div>
+      <div class="overlay-hint">
+        <span class="key-hint">⌥ Space</span> to stop
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

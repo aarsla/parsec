@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AudioShift Screenshot 3 — 99 Languages</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0e0e0e;
+    color: #fff;
+    position: relative;
+  }
+
+  .bg-glow {
+    position: absolute;
+    width: 50vw;
+    height: 50vw;
+    right: 10%;
+    top: 40%;
+    transform: translateY(-50%);
+    background: radial-gradient(circle, rgba(210, 140, 40, 0.06) 0%, transparent 65%);
+    pointer-events: none;
+  }
+
+  .content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    height: 100%;
+    padding: 7vh 5.5vw;
+    gap: 4vw;
+  }
+
+  .text-side {
+    flex: 0 0 38%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .tagline {
+    font-size: 1.1vw;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #e8940a;
+    margin-bottom: 2.5vh;
+  }
+
+  .headline {
+    font-size: 5vw;
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin-bottom: 3vh;
+    white-space: nowrap;
+  }
+
+  .headline .accent {
+    background: linear-gradient(135deg, #e8940a, #d4780a);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    font-size: 1.5vw;
+    font-weight: 400;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.45);
+    margin-bottom: 5vh;
+    max-width: 90%;
+  }
+
+  .features {
+    display: flex;
+    flex-direction: column;
+    gap: 2.2vh;
+  }
+
+  .feature {
+    display: flex;
+    align-items: center;
+    gap: 1vw;
+  }
+
+  .feature-icon {
+    width: 2.2vw;
+    height: 2.2vw;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e8940a, #c47008);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .feature-icon svg {
+    width: 1.1vw;
+    height: 1.1vw;
+    fill: none;
+    stroke: #fff;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .feature-text {
+    font-size: 1.3vw;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  /* Right side — language grid */
+  .visual-side {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .lang-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Language cloud */
+  .lang-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6vw;
+    max-width: 48vw;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .lang-pill {
+    padding: 0.8vh 1.1vw;
+    border-radius: 0.6vw;
+    font-size: 1vw;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.4);
+    white-space: nowrap;
+    transition: all 0.3s;
+  }
+
+  .lang-pill.highlight {
+    background: rgba(232, 148, 10, 0.12);
+    border-color: rgba(232, 148, 10, 0.3);
+    color: #e8940a;
+    font-weight: 600;
+  }
+
+  .lang-pill.medium {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .lang-pill.dim {
+    color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.04);
+  }
+
+  /* Auto-detect badge */
+  .auto-badge {
+    background: rgba(232, 148, 10, 0.1);
+    border: 1px solid rgba(232, 148, 10, 0.2);
+    border-radius: 1vw;
+    padding: 1.5vh 1.8vw;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7vw;
+    margin-bottom: 2.5vh;
+  }
+
+  .auto-badge-icon {
+    width: 1.6vw;
+    height: 1.6vw;
+    stroke: #e8940a;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .auto-badge-text {
+    font-size: 1vw;
+    font-weight: 600;
+    color: #e8940a;
+  }
+
+  .auto-badge-desc {
+    font-size: 0.75vw;
+    color: rgba(232, 148, 10, 0.6);
+    margin-top: 0.2vh;
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-glow"></div>
+
+<div class="content">
+  <div class="text-side">
+    <div class="tagline">Multilingual AI</div>
+    <h1 class="headline">
+      <span class="accent">99 languages.</span><br>One hotkey.
+    </h1>
+    <p class="subtitle">
+      Speak in any language and AudioShift transcribes it locally. Auto-detect figures out the language for you.
+    </p>
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <span class="feature-text">Auto-detect spoken language</span>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <span class="feature-text">Translate any language to English</span>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <span class="feature-text">All processing stays on device</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="visual-side">
+    <div class="lang-container">
+      <div class="auto-badge">
+        <svg class="auto-badge-icon" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M2 12h20"/>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+        </svg>
+        <div>
+          <div class="auto-badge-text">Auto-detect</div>
+          <div class="auto-badge-desc">Language detected automatically</div>
+        </div>
+      </div>
+
+      <div class="lang-grid">
+        <span class="lang-pill highlight">English</span>
+        <span class="lang-pill highlight">Spanish</span>
+        <span class="lang-pill highlight">French</span>
+        <span class="lang-pill highlight">German</span>
+        <span class="lang-pill highlight">Japanese</span>
+        <span class="lang-pill highlight">Chinese</span>
+        <span class="lang-pill medium">Arabic</span>
+        <span class="lang-pill medium">Portuguese</span>
+        <span class="lang-pill medium">Russian</span>
+        <span class="lang-pill medium">Korean</span>
+        <span class="lang-pill medium">Italian</span>
+        <span class="lang-pill medium">Hindi</span>
+        <span class="lang-pill medium">Dutch</span>
+        <span class="lang-pill medium">Turkish</span>
+        <span class="lang-pill medium">Polish</span>
+        <span class="lang-pill medium">Swedish</span>
+        <span class="lang-pill">Vietnamese</span>
+        <span class="lang-pill">Thai</span>
+        <span class="lang-pill">Czech</span>
+        <span class="lang-pill">Greek</span>
+        <span class="lang-pill">Romanian</span>
+        <span class="lang-pill">Danish</span>
+        <span class="lang-pill">Finnish</span>
+        <span class="lang-pill">Ukrainian</span>
+        <span class="lang-pill">Indonesian</span>
+        <span class="lang-pill">Hungarian</span>
+        <span class="lang-pill">Norwegian</span>
+        <span class="lang-pill">Hebrew</span>
+        <span class="lang-pill">Malay</span>
+        <span class="lang-pill">Croatian</span>
+        <span class="lang-pill dim">Bulgarian</span>
+        <span class="lang-pill dim">Serbian</span>
+        <span class="lang-pill dim">Slovak</span>
+        <span class="lang-pill dim">Catalan</span>
+        <span class="lang-pill dim">Tamil</span>
+        <span class="lang-pill dim">Bengali</span>
+        <span class="lang-pill dim">Swahili</span>
+        <span class="lang-pill dim">Persian</span>
+        <span class="lang-pill dim">Bosnian</span>
+        <span class="lang-pill dim">Georgian</span>
+        <span class="lang-pill dim">Tagalog</span>
+        <span class="lang-pill dim">Icelandic</span>
+        <span class="lang-pill dim">Latvian</span>
+        <span class="lang-pill dim">Welsh</span>
+        <span class="lang-pill dim">Basque</span>
+        <span class="lang-pill dim">Mongolian</span>
+        <span class="lang-pill dim">Kannada</span>
+        <span class="lang-pill dim">Nepali</span>
+        <span class="lang-pill dim">+51 more</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

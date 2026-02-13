@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AudioShift Screenshot 4 — Talk to AI</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0e0e0e;
+    color: #fff;
+    position: relative;
+  }
+
+  .bg-glow {
+    position: absolute;
+    width: 50vw;
+    height: 50vw;
+    right: 15%;
+    top: 45%;
+    transform: translateY(-50%);
+    background: radial-gradient(circle, rgba(210, 140, 40, 0.06) 0%, transparent 65%);
+    pointer-events: none;
+  }
+
+  .content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    height: 100%;
+    padding: 7vh 5.5vw;
+    gap: 4vw;
+  }
+
+  .text-side {
+    flex: 0 0 38%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .tagline {
+    font-size: 1.1vw;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #e8940a;
+    margin-bottom: 2.5vh;
+  }
+
+  .headline {
+    font-size: 4.8vw;
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin-bottom: 3vh;
+  }
+
+  .headline .accent {
+    background: linear-gradient(135deg, #e8940a, #d4780a);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    font-size: 1.5vw;
+    font-weight: 400;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.45);
+    margin-bottom: 5vh;
+    max-width: 90%;
+  }
+
+  .features {
+    display: flex;
+    flex-direction: column;
+    gap: 2.2vh;
+  }
+
+  .feature {
+    display: flex;
+    align-items: center;
+    gap: 1vw;
+  }
+
+  .feature-icon {
+    width: 2.2vw;
+    height: 2.2vw;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e8940a, #c47008);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .feature-icon svg {
+    width: 1.1vw;
+    height: 1.1vw;
+    fill: none;
+    stroke: #fff;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .feature-text {
+    font-size: 1.3vw;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  /* Right side — chat mock */
+  .visual-side {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  /* Chat window */
+  .chat-window {
+    width: 42vw;
+    background: #161616;
+    border-radius: 1.2vw;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    box-shadow:
+      0 4vh 10vh rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.03);
+  }
+
+  /* Browser-like top bar */
+  .chat-topbar {
+    height: 4.5vh;
+    background: #1a1a1a;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    padding: 0 1.2vw;
+    gap: 0.5vw;
+  }
+
+  .dot { width: 0.7vw; height: 0.7vw; border-radius: 50%; }
+  .dot-red { background: #ff5f57; }
+  .dot-yellow { background: #ffbd2e; }
+  .dot-green { background: #28c840; }
+
+  .chat-url {
+    flex: 1;
+    text-align: center;
+    font-size: 0.8vw;
+    color: rgba(255, 255, 255, 0.3);
+    font-weight: 500;
+  }
+
+  /* Chat body */
+  .chat-body {
+    padding: 3vh 2vw;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5vh;
+  }
+
+  /* AI message */
+  .msg {
+    display: flex;
+    gap: 1vw;
+    align-items: flex-start;
+  }
+
+  .msg-avatar {
+    width: 2.2vw;
+    height: 2.2vw;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1vw;
+    font-weight: 700;
+  }
+
+  .msg-avatar.ai {
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+    color: #fff;
+  }
+
+  .msg-avatar.user {
+    background: linear-gradient(135deg, #e8940a, #c47008);
+    color: #fff;
+  }
+
+  .msg-content {
+    flex: 1;
+  }
+
+  .msg-name {
+    font-size: 0.85vw;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 0.6vh;
+  }
+
+  .msg-text {
+    font-size: 1.05vw;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .msg-text code {
+    background: rgba(255, 255, 255, 0.06);
+    padding: 0.1vh 0.4vw;
+    border-radius: 0.3vw;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.95vw;
+    color: #e8940a;
+  }
+
+  /* Input area */
+  .chat-input {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 2vh 2vw;
+    display: flex;
+    align-items: center;
+    gap: 1vw;
+  }
+
+  .input-box {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.8vw;
+    padding: 1.3vh 1.2vw;
+    font-size: 1vw;
+    color: rgba(255, 255, 255, 0.7);
+    display: flex;
+    align-items: center;
+  }
+
+  .input-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1.2vw;
+    background: #e8940a;
+    animation: blink 1s infinite;
+    margin-left: 1px;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  .send-btn {
+    width: 2.8vw;
+    height: 2.8vw;
+    border-radius: 0.7vw;
+    background: linear-gradient(135deg, #e8940a, #c47008);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .send-btn svg {
+    width: 1.2vw;
+    height: 1.2vw;
+    fill: none;
+    stroke: #fff;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* Floating overlay mini */
+  .overlay-mini {
+    position: absolute;
+    bottom: 8vh;
+    right: 0;
+    background: rgba(20, 20, 20, 0.93);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 2vw;
+    padding: 1.5vh 1.8vw;
+    box-shadow: 0 2vh 5vh rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 1vw;
+  }
+
+  .mini-rec-dot {
+    width: 0.6vw;
+    height: 0.6vw;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 0.5vw rgba(239, 68, 68, 0.5);
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .mini-text {
+    font-size: 0.9vw;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .mini-timer {
+    font-size: 0.9vw;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mini-wave {
+    display: flex;
+    align-items: center;
+    gap: 0.15vw;
+    height: 2vh;
+  }
+
+  .mini-bar {
+    width: 0.15vw;
+    border-radius: 0.1vw;
+    background: linear-gradient(to top, #e8940a, #c47008);
+  }
+
+  /* Arrow annotation */
+  .arrow-label {
+    position: absolute;
+    bottom: 16vh;
+    right: 8vw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5vh;
+  }
+
+  .arrow-text {
+    font-size: 0.9vw;
+    font-weight: 600;
+    color: rgba(232, 148, 10, 0.7);
+    white-space: nowrap;
+  }
+
+  .arrow-line {
+    width: 2px;
+    height: 3vh;
+    background: rgba(232, 148, 10, 0.3);
+    border-radius: 1px;
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-glow"></div>
+
+<div class="content">
+  <div class="text-side">
+    <div class="tagline">Voice-powered AI</div>
+    <h1 class="headline">
+      Talk to<br><span class="accent">any AI.</span>
+    </h1>
+    <p class="subtitle">
+      Speak naturally to ChatGPT, Claude, Gemini, or any LLM. Your words are typed instantly — faster than any keyboard.
+    </p>
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <span class="feature-text">Works in any app or browser tab</span>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <span class="feature-text">Auto-pastes into the active window</span>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <span class="feature-text">No copy-paste — just speak and send</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="visual-side">
+    <div class="chat-window">
+      <div class="chat-topbar">
+        <div class="dot dot-red"></div>
+        <div class="dot dot-yellow"></div>
+        <div class="dot dot-green"></div>
+        <span class="chat-url">chatgpt.com</span>
+        <div style="width: 3.4vw"></div>
+      </div>
+
+      <div class="chat-body">
+        <!-- AI response -->
+        <div class="msg">
+          <div class="msg-avatar ai">G</div>
+          <div class="msg-content">
+            <div class="msg-name">ChatGPT</div>
+            <div class="msg-text">
+              Here's a Python function that calculates the Fibonacci sequence using memoization:
+              <br><br>
+              <code>def fib(n, memo={}):</code><br>
+              <code>&nbsp;&nbsp;if n &lt;= 1: return n</code><br>
+              <code>&nbsp;&nbsp;if n not in memo:</code><br>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;memo[n] = fib(n-1) + fib(n-2)</code><br>
+              <code>&nbsp;&nbsp;return memo[n]</code>
+              <br><br>
+              This runs in O(n) time instead of O(2^n). Would you like me to explain how the memoization works?
+            </div>
+          </div>
+        </div>
+
+        <!-- User message (being typed by AudioShift) -->
+        <div class="msg">
+          <div class="msg-avatar user">A</div>
+          <div class="msg-content">
+            <div class="msg-name">You</div>
+            <div class="msg-text">
+              Yes, and can you also show me how to do it iteratively with a loop instead of recursion<span class="input-cursor"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-input">
+        <div class="input-box">
+          Yes, and can you also show me how to do it iteratively with a loop instead of recursion<span class="input-cursor" style="animation-delay: 0.5s"></span>
+        </div>
+        <div class="send-btn">
+          <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Floating overlay -->
+    <div class="overlay-mini">
+      <div class="mini-rec-dot"></div>
+      <span class="mini-text">Recording</span>
+      <div class="mini-wave">
+        <div class="mini-bar" style="height: 30%"></div>
+        <div class="mini-bar" style="height: 55%"></div>
+        <div class="mini-bar" style="height: 80%"></div>
+        <div class="mini-bar" style="height: 45%"></div>
+        <div class="mini-bar" style="height: 70%"></div>
+        <div class="mini-bar" style="height: 90%"></div>
+        <div class="mini-bar" style="height: 60%"></div>
+        <div class="mini-bar" style="height: 40%"></div>
+        <div class="mini-bar" style="height: 75%"></div>
+        <div class="mini-bar" style="height: 50%"></div>
+        <div class="mini-bar" style="height: 30%"></div>
+      </div>
+      <span class="mini-timer">0:06</span>
+    </div>
+
+    <!-- Arrow annotation -->
+    <div class="arrow-label">
+      <span class="arrow-text">AudioShift types for you</span>
+      <div class="arrow-line"></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
