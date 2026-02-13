@@ -206,7 +206,7 @@ export function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden">
+    <div className="bg-card border border-border rounded-xl overflow-visible">
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border">
         {icon && (
           <span className="text-muted-foreground">{icon}</span>
