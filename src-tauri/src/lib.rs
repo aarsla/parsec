@@ -358,6 +358,23 @@ fn check_onboarding_needed() -> OnboardingStatus {
 }
 
 #[tauri::command]
+fn get_live_model(app: tauri::AppHandle) -> String {
+    app.store("settings.json")
+        .ok()
+        .and_then(|s| s.get("liveModel"))
+        .and_then(|v| v.as_str().map(String::from))
+        .unwrap_or_else(|| model_registry::DEFAULT_MODEL_ID.to_string())
+}
+
+#[tauri::command]
+fn set_live_model(app: tauri::AppHandle, model_id: String) -> Result<(), String> {
+    let store = app.store("settings.json").map_err(|e| e.to_string())?;
+    store.set("liveModel", serde_json::json!(model_id));
+    let _ = app.emit("live-model-changed", &model_id);
+    Ok(())
+}
+
+#[tauri::command]
 fn is_download_in_progress() -> bool {
     transcriber::is_downloading()
 }
@@ -711,6 +728,8 @@ pub fn run() {
             check_onboarding_needed,
             complete_onboarding,
             show_onboarding,
+            get_live_model,
+            set_live_model,
             is_download_in_progress,
             check_for_updates,
             install_update,

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { load } from "@tauri-apps/plugin-store";
 import {
   AudioWaveform,
   Check,
@@ -79,10 +78,10 @@ export default function Onboarding() {
 
   const selectedModel = models.find((m) => m.id === selectedModelId);
 
-  // Persist selected model as live model whenever it changes
-  useEffect(() => {
-    load("settings.json").then((store) => store.set("liveModel", selectedModelId)).catch(() => {});
-  }, [selectedModelId]);
+  const handleModelChange = (modelId: string) => {
+    setSelectedModelId(modelId);
+    invoke("set_live_model", { modelId });
+  };
 
   // 1. Listen for download progress
   useEffect(() => {
@@ -100,17 +99,19 @@ export default function Onboarding() {
     return () => { unlisten.then((fn) => fn()); };
   }, []);
 
-  // 2. Check status and load models
+  // 2. Check status and load models + saved live model
   useEffect(() => {
     const init = async () => {
-      const [s, hk, allModels] = await Promise.all([
+      const [s, hk, allModels, savedModel] = await Promise.all([
         invoke<OnboardingStatus>("check_onboarding_needed"),
         invoke<string>("get_current_hotkey"),
         invoke<ModelInfo[]>("get_all_models_status"),
+        invoke<string>("get_live_model"),
       ]);
       setStatus(s);
       setHotkey(hk);
       setModels(allModels);
+      setSelectedModelId(savedModel);
     };
     init();
   }, []);
@@ -180,7 +181,8 @@ export default function Onboarding() {
     };
   }, [step]);
 
-  const closeWindow = () => {
+  const closeWindow = async () => {
+    await invoke("set_live_model", { modelId: selectedModelId });
     invoke("complete_onboarding").finally(() => {
       getCurrentWebviewWindow().close();
     });
@@ -234,14 +236,14 @@ export default function Onboarding() {
                 </div>
               </div>
 
-              {/* Model selector — always visible */}
-              <div className="space-y-2">
-                <div className="relative">
+              {/* Model selector + action in one row */}
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1 min-w-0">
                   <select
                     value={selectedModelId}
-                    onChange={(e) => setSelectedModelId(e.target.value)}
+                    onChange={(e) => handleModelChange(e.target.value)}
                     disabled={isDownloading}
-                    className="w-full appearance-none bg-card border border-border rounded-xl px-4 py-3 pr-9 text-sm text-foreground cursor-pointer hover:border-primary/40 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full appearance-none bg-card border border-border rounded-xl px-4 py-2.5 pr-9 text-sm text-foreground cursor-pointer hover:border-primary/40 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {models.map((m) => (
                       <option key={m.id} value={m.id}>
@@ -255,65 +257,65 @@ export default function Onboarding() {
                   />
                 </div>
 
-                {selectedModel && (
-                  <div className="px-1">
-                    <p className="text-xs text-muted-foreground">
-                      {selectedModel.description}
-                    </p>
+                {selectedModel?.ready ? (
+                  <div className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 shrink-0">
+                    <Check size={14} className="text-emerald-500" />
+                    <span className="text-sm text-emerald-600 dark:text-emerald-400">Ready</span>
                   </div>
-                )}
-              </div>
-
-              {/* Status area */}
-              {selectedModel?.ready ? (
-                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                  <Check size={16} className="text-emerald-500 shrink-0" />
-                  <p className="text-sm text-foreground">Downloaded and ready.</p>
-                </div>
-              ) : downloadError ? (
-                <div className="space-y-3 p-4 rounded-xl bg-destructive/5 border border-destructive/20">
-                  <div className="flex items-center gap-2 text-sm">
-                    <TriangleAlert size={14} className="text-destructive shrink-0" />
-                    <span className="text-foreground font-medium">Download failed</span>
+                ) : isDownloading ? (
+                  <div className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-card border border-border shrink-0">
+                    <Loader2 size={14} className="animate-spin text-primary" />
+                    <span className="text-sm font-mono text-foreground">{overallPct}%</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">{downloadError}</p>
+                ) : (
                   <button
-                    onClick={retryDownload}
-                    className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg
+                    onClick={startDownload}
+                    className="flex items-center gap-1.5 px-4 py-2.5 text-sm rounded-xl shrink-0
                                bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                   >
                     <Download size={14} />
-                    Retry
+                    Download
                   </button>
-                </div>
-              ) : isDownloading ? (
-                <div className="space-y-3 p-4 rounded-xl bg-card border border-border">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground flex items-center gap-1.5">
-                      <Loader2 size={14} className="animate-spin text-primary" />
-                      Downloading{currentFile ? ` ${currentFile}` : ""}...
-                    </span>
-                    <span className="font-mono text-foreground">{overallPct}%</span>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                )}
+              </div>
+
+              {/* Description / status below */}
+              {selectedModel && !isDownloading && !downloadError && (
+                <p className="text-xs text-muted-foreground px-1">
+                  {selectedModel.description}
+                </p>
+              )}
+
+              {isDownloading && (
+                <div className="space-y-1.5">
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                     <div
                       className="h-full bg-primary rounded-full transition-all duration-300"
                       style={{ width: `${Math.max(overallPct, 1)}%` }}
                     />
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    {formatMB(overallDl)} / ~{formatMB(overallTotal)} MB
+                    {formatMB(overallDl)} / ~{formatMB(overallTotal)} MB{currentFile ? ` — ${currentFile}` : ""}
                   </p>
                 </div>
-              ) : (
-                <button
-                  onClick={startDownload}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg
-                             bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
-                  <Download size={14} />
-                  Download {selectedModel?.name ?? "Model"}
-                </button>
+              )}
+
+              {downloadError && (
+                <div className="flex items-start gap-2 p-3 rounded-xl bg-destructive/5 border border-destructive/20">
+                  <TriangleAlert size={14} className="text-destructive shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">Download failed</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 break-words">{downloadError}</p>
+                    <button
+                      onClick={retryDownload}
+                      className="mt-2 flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg
+                                 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                    >
+                      <Download size={12} />
+                      Retry
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           )}

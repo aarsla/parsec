@@ -76,6 +76,7 @@ export default function Settings() {
     });
     invoke<string>("get_current_hotkey").then(setHotkey);
     invoke<ModelStatusEntry[]>("get_all_models_status").then(setModels);
+    invoke<string>("get_live_model").then(setLiveModel);
     checkPermissions();
     loadAppSettings();
 
@@ -123,6 +124,13 @@ export default function Settings() {
     const win = getCurrentWebviewWindow();
     const unlisten = win.onFocusChanged(({ payload: focused }) => {
       if (focused) checkPermissions();
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, []);
+
+  useEffect(() => {
+    const unlisten = listen<string>("live-model-changed", (event) => {
+      setLiveModel(event.payload);
     });
     return () => { unlisten.then((fn) => fn()); };
   }, []);
@@ -269,9 +277,6 @@ export default function Settings() {
       if (savedPasteMode) {
         setPasteMode(savedPasteMode);
       }
-
-      const savedLiveModel = await store.get<string>("liveModel");
-      if (savedLiveModel) setLiveModel(savedLiveModel);
 
       const savedAutoUpdate = await store.get<boolean>("autoUpdate");
       if (savedAutoUpdate !== null && savedAutoUpdate !== undefined) {
@@ -443,8 +448,7 @@ export default function Settings() {
   const handleLiveModelChange = async (modelId: string) => {
     setLiveModel(modelId);
     try {
-      const store = await load("settings.json");
-      await store.set("liveModel", modelId);
+      await invoke("set_live_model", { modelId });
     } catch (e) {
       console.error("Failed to save live model:", e);
     }
@@ -580,7 +584,7 @@ export default function Settings() {
           />
         );
       case "about":
-        return <AboutPage />;
+        return <AboutPage liveModelName={models.find((m) => m.id === liveModel)?.name ?? liveModel} />;
       default:
         return null;
     }

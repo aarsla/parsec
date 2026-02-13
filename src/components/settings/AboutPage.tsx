@@ -5,7 +5,7 @@ import { Info, Settings as SettingsIcon, ExternalLink } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { SectionCard, SettingRow } from "./shared";
 
-export default function AboutPage() {
+export default function AboutPage({ liveModelName }: { liveModelName: string }) {
   return (
     <div className="space-y-4">
       <SectionCard title="About AudioShift" icon={<Info size={14} />}>
@@ -17,7 +17,7 @@ export default function AboutPage() {
         <Separator />
         <SettingRow label="Speech Model" description="Local transcription engine">
           <span className="text-sm text-muted-foreground font-mono">
-            Parakeet TDT v3
+            {liveModelName}
           </span>
         </SettingRow>
         <Separator />
