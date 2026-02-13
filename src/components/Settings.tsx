@@ -584,7 +584,7 @@ export default function Settings() {
           />
         );
       case "about":
-        return <AboutPage liveModelName={models.find((m) => m.id === liveModel)?.name ?? liveModel} />;
+        return <AboutPage liveModelName={models.find((m) => m.id === liveModel)?.name ?? liveModel} liveModelSize={models.find((m) => m.id === liveModel)?.sizeLabel ?? ""} />;
       default:
         return null;
     }

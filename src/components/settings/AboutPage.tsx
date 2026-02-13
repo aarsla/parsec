@@ -5,9 +5,51 @@ import { Info, Settings as SettingsIcon, ExternalLink } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { SectionCard, SettingRow } from "./shared";
 
-export default function AboutPage({ liveModelName }: { liveModelName: string }) {
+export default function AboutPage({ liveModelName, liveModelSize }: { liveModelName: string; liveModelSize: string }) {
   return (
     <div className="space-y-4">
+      <div className="bg-card border border-border rounded-xl overflow-hidden px-4 py-4 flex items-center gap-5">
+        <img src="/icon.png" alt="AudioShift" className="w-16 h-16 rounded-xl shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-primary mb-1">
+            Your own, private voice-to-text
+          </p>
+          <h3 className="text-xl font-bold text-foreground leading-tight">
+            Stop typing.{" "}
+            <span className="text-primary">Start speaking.</span>
+          </h3>
+          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+            Runs entirely on your device. Nothing leaves your machine.
+          </p>
+          <p className="text-[11px] text-muted-foreground/60 mt-1 font-mono">v0.1.5</p>
+        </div>
+        <div className="shrink-0 flex items-center pr-2">
+          <div className="flex items-center gap-[3px] h-12">
+            {Array.from({ length: 24 }).map((_, i) => {
+              const h = 6 + (((i * 7 + 13) * 37) % 36);
+              const delay = (((i * 11 + 5) * 23) % 120) / 100;
+              const dur = 0.8 + (((i * 13 + 3) * 29) % 80) / 100;
+              return (
+                <div
+                  key={i}
+                  className="w-[3px] rounded-full bg-primary"
+                  style={{
+                    height: `${h}px`,
+                    animation: `about-wave ${dur}s ease-in-out ${delay}s infinite`,
+                    opacity: 0.5,
+                  }}
+                />
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      <style>{`
+        @keyframes about-wave {
+          0%, 100% { transform: scaleY(0.3); opacity: 0.3; }
+          50% { transform: scaleY(1); opacity: 0.7; }
+        }
+      `}</style>
       <SectionCard title="About AudioShift" icon={<Info size={14} />}>
         <SettingRow label="Version" description="Current app version">
           <span className="text-sm text-muted-foreground font-mono">
@@ -16,9 +58,12 @@ export default function AboutPage({ liveModelName }: { liveModelName: string }) 
         </SettingRow>
         <Separator />
         <SettingRow label="Speech Model" description="Local transcription engine">
-          <span className="text-sm text-muted-foreground font-mono">
-            {liveModelName}
-          </span>
+          <div className="text-right">
+            <span className="text-sm text-muted-foreground font-mono">{liveModelName}</span>
+            {liveModelSize && (
+              <div className="text-[11px] text-muted-foreground/60 font-mono">{liveModelSize}</div>
+            )}
+          </div>
         </SettingRow>
         <Separator />
         <SettingRow label="Website">
