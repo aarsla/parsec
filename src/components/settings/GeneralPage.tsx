@@ -8,25 +8,30 @@ interface Props {
   autostart: boolean;
   showInDock: boolean;
   startSound: StartSound;
+  isMas?: boolean;
   onAutostartChange: (enabled: boolean) => void;
   onDockChange: (visible: boolean) => void;
   onStartSoundChange: (sound: StartSound) => void;
 }
 
 export default function GeneralPage({
-  autostart, showInDock, startSound,
+  autostart, showInDock, startSound, isMas,
   onAutostartChange, onDockChange, onStartSoundChange,
 }: Props) {
   return (
     <div className="space-y-4">
       <SectionCard title="Startup & Dock" icon={<SettingsIcon size={14} />}>
-        <SettingRow
-          label="Launch at startup"
-          description="Automatically start AudioShift when you log in"
-        >
-          <Switch checked={autostart} onCheckedChange={onAutostartChange} />
-        </SettingRow>
-        <Separator />
+        {!isMas && (
+          <>
+            <SettingRow
+              label="Launch at startup"
+              description="Automatically start AudioShift when you log in"
+            >
+              <Switch checked={autostart} onCheckedChange={onAutostartChange} />
+            </SettingRow>
+            <Separator />
+          </>
+        )}
         <SettingRow
           label="Show in Dock"
           description="Display AudioShift icon in the Dock"

@@ -428,6 +428,7 @@ fn is_download_in_progress() -> bool {
     transcriber::is_downloading()
 }
 
+#[cfg(feature = "updater")]
 #[derive(Clone, serde::Serialize)]
 struct UpdateStatusPayload {
     status: String,
@@ -439,6 +440,7 @@ struct UpdateStatusPayload {
     error: Option<String>,
 }
 
+#[cfg(feature = "updater")]
 async fn do_update_check(app: &tauri::AppHandle, quiet: bool) {
     use tauri_plugin_updater::UpdaterExt;
 
@@ -505,11 +507,17 @@ async fn do_update_check(app: &tauri::AppHandle, quiet: bool) {
     }
 }
 
+#[cfg(feature = "updater")]
 #[tauri::command]
 async fn check_for_updates(app: tauri::AppHandle) {
     do_update_check(&app, false).await;
 }
 
+#[cfg(not(feature = "updater"))]
+#[tauri::command]
+async fn check_for_updates(_app: tauri::AppHandle) {}
+
+#[cfg(feature = "updater")]
 async fn do_install(app: &tauri::AppHandle) -> Result<(), String> {
     use tauri_plugin_updater::UpdaterExt;
 
@@ -553,6 +561,7 @@ async fn do_install(app: &tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(feature = "updater")]
 #[tauri::command]
 async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     let _ = app.emit("update-status", UpdateStatusPayload {
@@ -585,9 +594,24 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     }
 }
 
+#[cfg(not(feature = "updater"))]
+#[tauri::command]
+async fn install_update(_app: tauri::AppHandle) -> Result<(), String> {
+    Ok(())
+}
+
 #[tauri::command]
 fn restart_app(app: tauri::AppHandle) {
     app.restart();
+}
+
+#[tauri::command]
+fn get_build_variant() -> String {
+    if cfg!(feature = "mas") {
+        "mas".to_string()
+    } else {
+        "direct".to_string()
+    }
 }
 
 fn create_overlay_window(app: &tauri::AppHandle) -> tauri::Result<()> {
@@ -740,16 +764,27 @@ fn show_onboarding(app: tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    #[allow(unused_mut)]
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::new().build())
-        .plugin(tauri_plugin_autostart::init(
+        .plugin(tauri_plugin_process::init());
+
+    #[cfg(not(feature = "mas"))]
+    {
+        builder = builder.plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::AppleScript,
             None,
-        ))
-        .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init())
+        ));
+    }
+
+    #[cfg(feature = "updater")]
+    {
+        builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    }
+
+    builder
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
             get_input_devices,
@@ -787,6 +822,7 @@ pub fn run() {
             check_for_updates,
             install_update,
             restart_app,
+            get_build_variant,
         ])
         .setup(|app| {
             // Create overlay window (hidden by default)
@@ -801,14 +837,23 @@ pub fn run() {
                 .build(app)?;
             let settings_item =
                 MenuItemBuilder::with_id("settings", "Settings").build(app)?;
-            let updates_item =
-                MenuItemBuilder::with_id("updates", "Check for Updates...").build(app)?;
             let quit_item = MenuItemBuilder::with_id("quit", "Quit AudioShift").build(app)?;
-            let menu = MenuBuilder::new(app)
+
+            #[allow(unused_mut)]
+            let mut menu_builder = MenuBuilder::new(app)
                 .item(&status_item)
                 .separator()
-                .item(&settings_item)
-                .item(&updates_item)
+                .item(&settings_item);
+
+            #[cfg(feature = "updater")]
+            let updates_item =
+                MenuItemBuilder::with_id("updates", "Check for Updates...").build(app)?;
+            #[cfg(feature = "updater")]
+            {
+                menu_builder = menu_builder.item(&updates_item);
+            }
+
+            let menu = menu_builder
                 .separator()
                 .item(&quit_item)
                 .build()?;
@@ -823,6 +868,7 @@ pub fn run() {
                     "settings" => {
                         let _ = create_settings_window(app);
                     }
+                    #[cfg(feature = "updater")]
                     "updates" => {
                         // Store pending section so fresh windows pick it up on mount
                         if let Ok(store) = app.store("settings.json") {
@@ -844,6 +890,7 @@ pub fn run() {
 
             // Store tray handle for dynamic updates
             app.state::<AppState>().set_tray(tray, status_item);
+            #[cfg(feature = "updater")]
             app.state::<AppState>().set_tray_updates_item(updates_item);
 
             // Listen for status changes to update tray
@@ -903,25 +950,28 @@ pub fn run() {
                 hotkey::register_default_hotkey(app)?;
             }
 
-            // Periodic update check (hourly, quiet)
-            let handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                tokio::time::sleep(std::time::Duration::from_secs(60)).await;
-                loop {
-                    let auto_update = handle
-                        .store("settings.json")
-                        .ok()
-                        .and_then(|s| s.get("autoUpdate"))
-                        .and_then(|v| v.as_bool())
-                        .unwrap_or(true);
+            // Periodic update check (hourly, quiet) — direct builds only
+            #[cfg(feature = "updater")]
+            {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                    loop {
+                        let auto_update = handle
+                            .store("settings.json")
+                            .ok()
+                            .and_then(|s| s.get("autoUpdate"))
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(true);
 
-                    if auto_update {
-                        do_update_check(&handle, true).await;
+                        if auto_update {
+                            do_update_check(&handle, true).await;
+                        }
+
+                        tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
                     }
-
-                    tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
-                }
-            });
+                });
+            }
 
             Ok(())
         })

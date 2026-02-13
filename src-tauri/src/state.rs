@@ -22,6 +22,7 @@ impl fmt::Display for Status {
     }
 }
 
+#[allow(dead_code)]
 pub struct AppState {
     status: Mutex<Status>,
     pub audio_buffer: Arc<Mutex<Vec<f32>>>,
@@ -31,6 +32,7 @@ pub struct AppState {
     tray_updates_item: Mutex<Option<MenuItem<tauri::Wry>>>,
 }
 
+#[allow(dead_code)]
 impl AppState {
     pub fn new() -> Self {
         Self {

@@ -1,0 +1,11 @@
+{
+  "identifier": "io.audioshift.app",
+  "plugins": {},
+  "bundle": {
+    "createUpdaterArtifacts": false,
+    "macOS": {
+      "entitlements": "Entitlements.mas.plist",
+      "minimumSystemVersion": "10.15"
+    }
+  }
+}

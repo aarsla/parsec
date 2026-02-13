@@ -56,6 +56,7 @@ export default function Settings() {
   const [transcriptionLanguage, setTranscriptionLanguage] = useState("auto");
   const [translateToEnglish, setTranslateToEnglish] = useState(false);
   const [monitorLevel, setMonitorLevel] = useState(0);
+  const [buildVariant, setBuildVariant] = useState<"direct" | "mas">("direct");
   const monitorSmoothed = useRef(0);
   const monitorRaf = useRef(0);
 
@@ -77,6 +78,7 @@ export default function Settings() {
       }
     });
     invoke<string>("get_current_hotkey").then(setHotkey);
+    invoke<string>("get_build_variant").then((v) => setBuildVariant(v as "direct" | "mas"));
     invoke<ModelStatusEntry[]>("get_all_models_status").then(setModels);
     invoke<string>("get_live_model").then(setLiveModel);
     invoke<string>("get_transcription_language").then(setTranscriptionLanguage);
@@ -251,8 +253,12 @@ export default function Settings() {
       applyAccent(accent);
       localStorage.setItem("accentColor", accent);
 
-      const autostartEnabled = await isEnabled();
-      setAutostart(autostartEnabled);
+      try {
+        const autostartEnabled = await isEnabled();
+        setAutostart(autostartEnabled);
+      } catch {
+        // autostart plugin not available (MAS build)
+      }
 
       const savedDock = await store.get<boolean>("showInDock");
       if (savedDock !== null && savedDock !== undefined) {
@@ -512,6 +518,8 @@ export default function Settings() {
 
   // --- Navigation ---
 
+  const isMas = buildVariant === "mas";
+
   const navItems: { id: Section; label: string; icon: React.ReactNode }[] = [
     { id: "general", label: "General", icon: <SettingsIcon size={16} /> },
     { id: "appearance", label: "Appearance", icon: <Palette size={16} /> },
@@ -520,7 +528,7 @@ export default function Settings() {
     { id: "output", label: "Output", icon: <ClipboardPaste size={16} /> },
     { id: "history", label: "History", icon: <Clock size={16} /> },
     { id: "model", label: "Transcription", icon: <Box size={16} /> },
-    { id: "updates", label: "Updates", icon: <Download size={16} /> },
+    ...(!isMas ? [{ id: "updates" as Section, label: "Updates", icon: <Download size={16} /> }] : []),
     { id: "about", label: "About", icon: <Info size={16} /> },
   ];
 
@@ -534,6 +542,7 @@ export default function Settings() {
             autostart={autostart}
             showInDock={showInDock}
             startSound={startSound}
+            isMas={isMas}
             onAutostartChange={handleAutostartChange}
             onDockChange={handleDockChange}
             onStartSoundChange={handleStartSoundChange}

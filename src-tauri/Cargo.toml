@@ -9,6 +9,11 @@ edition = "2021"
 name = "audioshift_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+default = ["updater"]
+updater = ["dep:tauri-plugin-updater"]
+mas = []
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 cc = "1"
@@ -48,5 +53,5 @@ whisper-rs = "0.15"
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-autostart = "2"
-tauri-plugin-updater = "2"
+tauri-plugin-updater = { version = "2", optional = true }
 tauri-plugin-process = "2"
