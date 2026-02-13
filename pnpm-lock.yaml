@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@cloudworxx/tauri-plugin-mac-rounded-corners':
+        specifier: ^1.1.1
+        version: 1.1.1(@tauri-apps/api@2.10.1)
       '@tauri-apps/api':
         specifier: ^2
         version: 2.10.1
@@ -228,6 +231,13 @@ packages:
   '@babel/types@7.29.0':
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
+
+  '@cloudworxx/tauri-plugin-mac-rounded-corners@1.1.1':
+    resolution: {integrity: sha512-oF75CsaetpvqzMlbULMqGjpg4Y3GqdIIqU4+gbjtPEuLb2AYWGGprjL3UQfIm6Ew75pDFFgVxnL7rJBr5uttgg==}
+    engines: {node: '>=18.0.0'}
+    hasBin: true
+    peerDependencies:
+      '@tauri-apps/api': ^2
 
   '@dotenvx/dotenvx@1.52.0':
     resolution: {integrity: sha512-CaQcc8JvtzQhUSm9877b6V4Tb7HCotkcyud9X2YwdqtQKwgljkMRwU96fVYKnzN3V0Hj74oP7Es+vZ0mS+Aa1w==}
@@ -3165,6 +3175,10 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
+
+  '@cloudworxx/tauri-plugin-mac-rounded-corners@1.1.1(@tauri-apps/api@2.10.1)':
+    dependencies:
+      '@tauri-apps/api': 2.10.1
 
   '@dotenvx/dotenvx@1.52.0':
     dependencies:

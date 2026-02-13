@@ -8,7 +8,10 @@
     "createUpdaterArtifacts": false,
     "macOS": {
       "entitlements": "Entitlements.mas.plist",
-      "minimumSystemVersion": "12.0"
+      "minimumSystemVersion": "12.0",
+      "files": {
+        "embedded.provisionprofile": "../ioaudioshiftapp.provisionprofile"
+      }
     }
   }
 }

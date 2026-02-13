@@ -74,7 +74,7 @@ async function positionOverlay(
   w: number,
   h: number,
 ) {
-  const pos = (localStorage.getItem("overlayPosition") || "center") as OverlayPosition;
+  const pos = (localStorage.getItem("overlayPosition") || "top-center") as OverlayPosition;
   try {
     await win.setSize(new LogicalSize(w, h));
 
@@ -186,10 +186,20 @@ export default function RecordingOverlay({ status }: Props) {
 
   // Transparent background so rounded corners show through, hide scrollbars
   useEffect(() => {
-    document.documentElement.style.background = "transparent";
     document.documentElement.style.overflow = "hidden";
-    document.body.style.background = "transparent";
     document.body.style.overflow = "hidden";
+    invoke<string>("get_build_variant").then((variant) => {
+      if (variant === "mas") {
+        document.documentElement.style.background = "#000";
+        document.body.style.background = "#000";
+      } else {
+        document.documentElement.style.background = "transparent";
+        document.body.style.background = "transparent";
+      }
+    }).catch(() => {
+      document.documentElement.style.background = "transparent";
+      document.body.style.background = "transparent";
+    });
   }, []);
 
   useEffect(() => {

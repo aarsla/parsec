@@ -87,7 +87,7 @@ export default function App() {
     const unlistenToggle = listen<string>("recording-toggle", async (event) => {
       if (event.payload === "start") {
         try {
-          const sound = localStorage.getItem("startSound") || "chirp";
+          const sound = localStorage.getItem("startSound") || "none";
           if (sound !== "none") {
             new Audio(`/sounds/${sound}.mp3`).play().catch(() => {});
           }

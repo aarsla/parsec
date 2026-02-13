@@ -25,3 +25,7 @@ src-tauri/target
 *.njsproj
 *.sln
 *.sw?
+
+# Build artifacts
+*.pkg
+*.provisionprofile

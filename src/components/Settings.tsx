@@ -35,7 +35,7 @@ export default function Settings() {
   const [a11yPermission, setA11yPermission] = useState<PermissionStatus>("checking");
   const [autostart, setAutostart] = useState(false);
   const [showInDock, setShowInDock] = useState(true);
-  const [startSound, setStartSound] = useState<StartSound>("chirp");
+  const [startSound, setStartSound] = useState<StartSound>("none");
   const [autoUpdate, setAutoUpdate] = useState(true);
   const [lastChecked, setLastChecked] = useState<string>("");
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>("idle");
@@ -46,7 +46,7 @@ export default function Settings() {
   const [updateTotal, setUpdateTotal] = useState(0);
   const [themeMode, setThemeMode] = useState<ThemeMode>("system");
   const [accentColor, setAccentColor] = useState<AccentColor>("orange");
-  const [overlayPosition, setOverlayPosition] = useState<OverlayPosition>("center");
+  const [overlayPosition, setOverlayPosition] = useState<OverlayPosition>("top-center");
   const [overlayTheme, setOverlayTheme] = useState<OverlayTheme>("default");
   const [testingMic, setTestingMic] = useState(false);
   const [models, setModels] = useState<ModelStatusEntry[]>([]);
@@ -254,10 +254,15 @@ export default function Settings() {
       localStorage.setItem("accentColor", accent);
 
       try {
-        const autostartEnabled = await isEnabled();
-        setAutostart(autostartEnabled);
+        if (buildVariant === "mas") {
+          const enabled = await invoke<boolean>("mas_login_item_is_enabled");
+          setAutostart(enabled);
+        } else {
+          const autostartEnabled = await isEnabled();
+          setAutostart(autostartEnabled);
+        }
       } catch {
-        // autostart plugin not available (MAS build)
+        // autostart not available
       }
 
       const savedDock = await store.get<boolean>("showInDock");
@@ -331,7 +336,12 @@ export default function Settings() {
 
   const handleAutostartChange = async (enabled: boolean) => {
     try {
-      if (enabled) await enable(); else await disable();
+      if (buildVariant === "mas") {
+        if (enabled) await invoke("mas_login_item_enable");
+        else await invoke("mas_login_item_disable");
+      } else {
+        if (enabled) await enable(); else await disable();
+      }
       setAutostart(enabled);
     } catch (e) {
       console.error("Failed to toggle autostart:", e);
@@ -671,7 +681,7 @@ export default function Settings() {
         )}
         <div className="px-3 pb-3">
           <p className="text-[11px] text-muted-foreground/50 px-3">
-            AudioShift v0.1.6
+            AudioShift v1.0.0
           </p>
         </div>
       </div>

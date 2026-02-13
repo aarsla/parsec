@@ -482,57 +482,45 @@ export default function Onboarding() {
           )}
 
           {/* Buttons */}
-          <div className="flex items-center justify-between">
-            <div>
-              {step > 0 && step < 4 && (
-                <button
-                  onClick={() => setStep(step - 1)}
-                  className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg
-                             text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <ChevronLeft size={14} />
-                  Back
-                </button>
-              )}
+          {step === 0 ? (
+            <div className="flex justify-center">
+              <button
+                onClick={() => setStep(1)}
+                className="flex items-center gap-1.5 px-5 py-2 text-sm rounded-lg
+                           bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                Get Started
+                <ChevronRight size={14} />
+              </button>
             </div>
-
-            <div>
-              {step === 0 && (
-                <button
-                  onClick={() => setStep(1)}
-                  className="flex items-center gap-1.5 px-5 py-2 text-sm rounded-lg
-                             bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
-                  Get Started
-                  <ChevronRight size={14} />
-                </button>
-              )}
-
-              {step > 0 && step < 4 && (
-                <div className="flex items-center gap-2">
-                  {(step >= 1 && step <= 3) && (
-                    <button
-                      onClick={() => setStep(step + 1)}
-                      className="px-3 py-1.5 text-sm rounded-lg
-                                 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      Skip
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setStep(step + 1)}
-                    className="flex items-center gap-1.5 px-5 py-2 text-sm rounded-lg
-                               bg-primary text-primary-foreground hover:bg-primary/90
-                               transition-colors disabled:opacity-40 disabled:pointer-events-none"
-                  >
-                    Next
-                    <ChevronRight size={14} />
-                  </button>
-                </div>
-              )}
-
+          ) : step < 4 ? (
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => setStep(step - 1)}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg
+                           text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronLeft size={14} />
+                Back
+              </button>
+              <button
+                onClick={() => setStep(step + 1)}
+                className="px-3 py-1.5 text-sm rounded-lg
+                           text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Skip
+              </button>
+              <button
+                onClick={() => setStep(step + 1)}
+                className="flex items-center gap-1.5 px-5 py-2 text-sm rounded-lg
+                           bg-primary text-primary-foreground hover:bg-primary/90
+                           transition-colors"
+              >
+                Next
+                <ChevronRight size={14} />
+              </button>
             </div>
-          </div>
+          ) : null}
         </div>
       </div>
     </div>

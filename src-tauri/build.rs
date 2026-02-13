@@ -10,9 +10,13 @@ fn main() {
         cc::Build::new()
             .file("src/clipboard_helper.m")
             .compile("clipboard_helper");
+        cc::Build::new()
+            .file("src/login_item_helper.m")
+            .compile("login_item_helper");
         println!("cargo:rustc-link-lib=framework=AppKit");
         println!("cargo:rustc-link-lib=framework=CoreGraphics");
         println!("cargo:rustc-link-lib=framework=AVFoundation");
+        println!("cargo:rustc-link-lib=framework=ServiceManagement");
     }
 
     // Generate capabilities file based on active features.

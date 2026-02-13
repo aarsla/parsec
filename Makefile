@@ -1,4 +1,4 @@
-.PHONY: dev build run build-mas run-mas check check-mas check-ts check-all
+.PHONY: dev build run build-mas pkg run-mas check check-mas check-ts check-all
 
 dev:
 	pnpm tauri dev
@@ -27,6 +27,22 @@ build-mas:
 		--minimum-deployment-target 12.0 \
 		--app-icon AppIcon \
 		--output-partial-info-plist /dev/null
+
+SIGN_APP = Apple Distribution: "OPTIMIZE" d.o.o. Sarajevo (47D5MB9TH5)
+SIGN_PKG = 3rd Party Mac Developer Installer: "OPTIMIZE" d.o.o. Sarajevo (47D5MB9TH5)
+
+pkg: build-mas
+	@# Set CFBundleIconName so App Store uses the asset catalog icon
+	/usr/libexec/PlistBuddy -c "Add :CFBundleIconName string AppIcon" $(MAS_APP)/Contents/Info.plist 2>/dev/null || \
+		/usr/libexec/PlistBuddy -c "Set :CFBundleIconName AppIcon" $(MAS_APP)/Contents/Info.plist
+	@# Strip quarantine attributes (from browser-downloaded files like provisioning profile)
+	xattr -cr $(MAS_APP)
+	@# Re-sign with Apple Distribution cert + entitlements (includes app-identifier)
+	codesign --deep --force --sign '$(SIGN_APP)' \
+		--entitlements src-tauri/Entitlements.mas.plist $(MAS_APP)
+	@# Create signed installer pkg
+	productbuild --component $(MAS_APP) /Applications \
+		--sign '$(SIGN_PKG)' AudioShift.pkg
 
 run-mas: build-mas
 	-tccutil reset Microphone
