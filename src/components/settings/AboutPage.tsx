@@ -101,7 +101,7 @@ export default function AboutPage({ liveModelName, liveModelSize }: { liveModelN
             className="px-2.5 py-1 text-xs rounded-md bg-secondary border border-border
                        hover:bg-accent text-muted-foreground transition-colors"
           >
-            Redo Setup
+            Restart Onboarding
           </button>
         </SettingRow>
       </SectionCard>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
-import { Search, Copy, Trash2, Check, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Search, Copy, Trash2, Check, ChevronLeft, ChevronRight, X, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -433,12 +433,20 @@ export default function History() {
             </div>
           </ScrollArea>
         ) : (
-          <div className="h-full flex items-center justify-center">
-            <p className="text-sm text-muted-foreground">
-              {entries.length === 0
-                ? "Transcriptions will appear here"
-                : "Select a transcription to view details"}
-            </p>
+          <div className="h-full flex flex-col items-center justify-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+              <FileText size={20} className="text-muted-foreground" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-medium text-foreground">
+                {entries.length === 0 ? "No transcriptions yet" : "No transcription selected"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {entries.length === 0
+                  ? "Transcriptions will appear here"
+                  : "Select a transcription to view details"}
+              </p>
+            </div>
           </div>
         )}
       </div>
