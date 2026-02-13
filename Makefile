@@ -12,12 +12,21 @@ run: build
 	-rm -f "$(HOME)/Library/Application Support/com.aarsla.audioshift/settings.json"
 	open src-tauri/target/release/bundle/macos/AudioShift.app
 
+MAS_APP = src-tauri/target/aarch64-apple-darwin/release/bundle/macos/AudioShift.app
+
 build-mas:
 	pnpm tauri build \
 		-b app \
 		-t aarch64-apple-darwin \
 		-c src-tauri/tauri.mas.conf.json \
 		-- --no-default-features --features mas
+	@# Compile asset catalog and inject into app bundle for App Store icon
+	actool src-tauri/Assets.xcassets \
+		--compile $(MAS_APP)/Contents/Resources \
+		--platform macosx \
+		--minimum-deployment-target 12.0 \
+		--app-icon AppIcon \
+		--output-partial-info-plist /dev/null
 
 run-mas: build-mas
 	-tccutil reset Microphone

@@ -8,7 +8,7 @@
     "createUpdaterArtifacts": false,
     "macOS": {
       "entitlements": "Entitlements.mas.plist",
-      "minimumSystemVersion": "10.15"
+      "minimumSystemVersion": "12.0"
     }
   }
 }
