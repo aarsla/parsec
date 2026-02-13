@@ -639,15 +639,30 @@ export default function Settings() {
       {/* Content */}
       {activeSection === "history" ? (
         <div className="flex-1 flex flex-col min-h-0">
-          <div className="h-8 shrink-0" data-tauri-drag-region />
+          <div className="px-6 pt-3 pb-1" data-tauri-drag-region>
+            <div className="flex items-center gap-2.5 pt-5 mb-4">
+              <span className="text-primary"><Clock size={18} /></span>
+              <h2 className="text-xl font-semibold text-foreground">History</h2>
+            </div>
+          </div>
           <div className="flex-1 min-h-0 overflow-hidden">
             <History />
           </div>
         </div>
       ) : (
         <ScrollArea className="flex-1">
-          <div className="h-8 shrink-0" data-tauri-drag-region />
-          <div className="p-6">
+          <div className="px-6 pt-3 pb-1" data-tauri-drag-region>
+            {(() => {
+              const nav = navItems.find((n) => n.id === activeSection);
+              return nav ? (
+                <div className="flex items-center gap-2.5 pt-5 mb-4">
+                  <span className="text-primary">{nav.icon}</span>
+                  <h2 className="text-xl font-semibold text-foreground">{nav.label}</h2>
+                </div>
+              ) : null;
+            })()}
+          </div>
+          <div className="px-6 pb-6">
             {renderPage()}
           </div>
         </ScrollArea>
