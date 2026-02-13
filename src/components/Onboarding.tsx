@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { load } from "@tauri-apps/plugin-store";
 import {
   AudioWaveform,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -28,6 +30,17 @@ interface DownloadProgress {
   overall_downloaded?: number;
   overall_total?: number;
   overall_progress?: number;
+}
+
+interface ModelInfo {
+  id: string;
+  name: string;
+  engine: string;
+  description: string;
+  sizeLabel: string;
+  ready: boolean;
+  diskSize: number;
+  path: string;
 }
 
 const STEPS = ["Welcome", "Model", "Microphone", "Accessibility", "Ready"] as const;
@@ -54,6 +67,8 @@ export default function Onboarding() {
     mic_granted: false,
     accessibility_granted: false,
   });
+  const [models, setModels] = useState<ModelInfo[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState("parakeet-tdt-0.6b-v3");
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const isMac = navigator.userAgent.includes("Mac");
@@ -62,7 +77,14 @@ export default function Onboarding() {
   const [testResult, setTestResult] = useState("");
   const downloadStarted = useRef(false);
 
-  // 1. Listen for download progress — set up FIRST so no events are missed
+  const selectedModel = models.find((m) => m.id === selectedModelId);
+
+  // Persist selected model as live model whenever it changes
+  useEffect(() => {
+    load("settings.json").then((store) => store.set("liveModel", selectedModelId)).catch(() => {});
+  }, [selectedModelId]);
+
+  // 1. Listen for download progress
   useEffect(() => {
     const unlisten = listen<DownloadProgress>("model-download-progress", (event) => {
       const data = event.payload;
@@ -70,6 +92,7 @@ export default function Onboarding() {
         setProgress(null);
         setDownloadError(null);
         setStatus((s) => ({ ...s, model_ready: true }));
+        invoke<ModelInfo[]>("get_all_models_status").then(setModels);
       } else {
         setProgress(data);
       }
@@ -77,35 +100,22 @@ export default function Onboarding() {
     return () => { unlisten.then((fn) => fn()); };
   }, []);
 
-  // 2. Check status, then start download from HERE (not from Rust setup)
+  // 2. Check status and load models
   useEffect(() => {
     const init = async () => {
-      const [s, hk] = await Promise.all([
+      const [s, hk, allModels] = await Promise.all([
         invoke<OnboardingStatus>("check_onboarding_needed"),
         invoke<string>("get_current_hotkey"),
+        invoke<ModelInfo[]>("get_all_models_status"),
       ]);
       setStatus(s);
       setHotkey(hk);
-
-      if (!s.model_ready && !downloadStarted.current) {
-        downloadStarted.current = true;
-        // Delete any partial/stale files so nothing gets skipped
-        try { await invoke("delete_model", { modelId: "parakeet-tdt-0.6b-v3" }); } catch {}
-        // Show immediate feedback
-        setProgress({ file: "starting", progress: 0, overall_progress: 0, overall_downloaded: 0, overall_total: 680_000_000 });
-        // Start download — listener above is already active
-        try {
-          await invoke("download_model", { modelId: "parakeet-tdt-0.6b-v3" });
-        } catch (e) {
-          setDownloadError(String(e));
-          setProgress(null);
-        }
-      }
+      setModels(allModels);
     };
     init();
   }, []);
 
-  // Recheck status when window regains focus (e.g. returning from System Settings)
+  // Recheck status when window regains focus
   useEffect(() => {
     const win = getCurrentWebviewWindow();
     const unlisten = win.onFocusChanged(({ payload: focused }) => {
@@ -116,7 +126,7 @@ export default function Onboarding() {
     return () => { unlisten.then((fn) => fn()); };
   }, []);
 
-  // 3. Poll status on active steps as backup
+  // Poll status on active steps as backup
   useEffect(() => {
     if (step < 1) return;
     const interval = setInterval(async () => {
@@ -126,16 +136,30 @@ export default function Onboarding() {
     return () => clearInterval(interval);
   }, [step]);
 
-  const retryDownload = async () => {
+  const startDownload = async () => {
+    if (downloadStarted.current) return;
+    downloadStarted.current = true;
     setDownloadError(null);
-    try { await invoke("delete_model"); } catch {}
-    setProgress({ file: "starting", progress: 0, overall_progress: 0, overall_downloaded: 0, overall_total: 680_000_000 });
+
+    const model = models.find((m) => m.id === selectedModelId);
+    const approxBytes = model?.diskSize || 680_000_000;
+
+    try { await invoke("delete_model", { modelId: selectedModelId }); } catch {}
+    setProgress({ file: "starting", progress: 0, overall_progress: 0, overall_downloaded: 0, overall_total: approxBytes });
+
     try {
-      await invoke("download_model");
+      await invoke("download_model", { modelId: selectedModelId });
     } catch (e) {
       setDownloadError(String(e));
       setProgress(null);
+      downloadStarted.current = false;
     }
+  };
+
+  const retryDownload = async () => {
+    downloadStarted.current = false;
+    setDownloadError(null);
+    startDownload();
   };
 
   // Listen for status changes and transcription result on the Ready step
@@ -156,29 +180,13 @@ export default function Onboarding() {
     };
   }, [step]);
 
-  const startTestRecording = async () => {
-    setTestResult("");
-    try {
-      await invoke("start_recording");
-      setTestState("recording");
-    } catch (e) {
-      setTestResult(`Error: ${e}`);
-    }
-  };
-
   const closeWindow = () => {
     invoke("complete_onboarding").finally(() => {
       getCurrentWebviewWindow().close();
     });
   };
 
-  const canGoNext = () => {
-    switch (step) {
-      case 1: return true;
-      default: return true;
-    }
-  };
-
+  const isDownloading = progress != null;
   const overallPct = progress?.overall_progress ?? 0;
   const overallDl = progress?.overall_downloaded ?? 0;
   const overallTotal = progress?.overall_total ?? 680_000_000;
@@ -213,7 +221,7 @@ export default function Onboarding() {
           )}
 
           {step === 1 && (
-            <div className="space-y-5">
+            <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                   <Download size={20} className="text-primary" />
@@ -221,18 +229,46 @@ export default function Onboarding() {
                 <div>
                   <h2 className="text-lg font-semibold">Speech Model</h2>
                   <p className="text-xs text-muted-foreground">
-                    Parakeet TDT 0.6b v3 (~630 MB) for local transcription.
+                    Choose a model for local transcription.
                   </p>
                 </div>
               </div>
 
-              {status.model_ready ? (
-                <div className="flex items-center gap-2.5 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                  <Check size={18} className="text-emerald-500 shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Parakeet TDT downloaded</p>
-                    <p className="text-xs text-muted-foreground">Ready for transcription.</p>
+              {/* Model selector — always visible */}
+              <div className="space-y-2">
+                <div className="relative">
+                  <select
+                    value={selectedModelId}
+                    onChange={(e) => setSelectedModelId(e.target.value)}
+                    disabled={isDownloading}
+                    className="w-full appearance-none bg-card border border-border rounded-xl px-4 py-3 pr-9 text-sm text-foreground cursor-pointer hover:border-primary/40 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {models.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} (~{m.sizeLabel}){m.ready ? " ✓" : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={14}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground"
+                  />
+                </div>
+
+                {selectedModel && (
+                  <div className="px-1">
+                    <p className="text-xs text-muted-foreground">
+                      {selectedModel.description}
+                    </p>
                   </div>
+                )}
+              </div>
+
+              {/* Status area */}
+              {selectedModel?.ready ? (
+                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                  <Check size={16} className="text-emerald-500 shrink-0" />
+                  <p className="text-sm text-foreground">Downloaded and ready.</p>
                 </div>
               ) : downloadError ? (
                 <div className="space-y-3 p-4 rounded-xl bg-destructive/5 border border-destructive/20">
@@ -247,10 +283,10 @@ export default function Onboarding() {
                                bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                   >
                     <Download size={14} />
-                    Retry Download
+                    Retry
                   </button>
                 </div>
-              ) : (
+              ) : isDownloading ? (
                 <div className="space-y-3 p-4 rounded-xl bg-card border border-border">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground flex items-center gap-1.5">
@@ -269,6 +305,15 @@ export default function Onboarding() {
                     {formatMB(overallDl)} / ~{formatMB(overallTotal)} MB
                   </p>
                 </div>
+              ) : (
+                <button
+                  onClick={startDownload}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg
+                             bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  <Download size={14} />
+                  Download {selectedModel?.name ?? "Model"}
+                </button>
               )}
             </div>
           )}
@@ -365,39 +410,8 @@ export default function Onboarding() {
               <div>
                 <h2 className="text-2xl font-semibold tracking-tight">You're all set!</h2>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Try it out — click the button below and say something.
+                  Try it out — press the shortcut and say something.
                 </p>
-              </div>
-
-              <div className="space-y-3 max-w-xs mx-auto">
-                {testState === "idle" && !testResult && (
-                  <button
-                    onClick={startTestRecording}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm rounded-lg
-                               bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                  >
-                    <Mic size={16} /> Try It
-                  </button>
-                )}
-
-                {testState === "recording" && (
-                  <div className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm text-red-500">
-                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                    Listening... press <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-xs text-foreground">{shortcutDisplay(hotkey)}</kbd> to stop
-                  </div>
-                )}
-
-                {testState === "transcribing" && (
-                  <div className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm text-muted-foreground">
-                    <Loader2 size={16} className="animate-spin" /> Transcribing...
-                  </div>
-                )}
-
-                {testResult && (
-                  <div className="p-3 rounded-xl bg-card border border-border text-left">
-                    <p className="text-sm text-foreground">{testResult}</p>
-                  </div>
-                )}
               </div>
 
               <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-card border border-border mx-auto">
@@ -406,6 +420,28 @@ export default function Onboarding() {
                   {shortcutDisplay(hotkey)}
                 </kbd>
                 <span className="text-xs text-muted-foreground">anywhere to record</span>
+              </div>
+
+              {/* Test capture area */}
+              <div className="max-w-xs mx-auto">
+                {testState === "recording" && (
+                  <div className="flex items-center justify-center gap-2 py-3 text-sm text-red-500">
+                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    Listening... press <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-xs text-foreground">{shortcutDisplay(hotkey)}</kbd> to stop
+                  </div>
+                )}
+
+                {testState === "transcribing" && (
+                  <div className="flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground">
+                    <Loader2 size={14} className="animate-spin" /> Transcribing...
+                  </div>
+                )}
+
+                {testResult && (
+                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/15">
+                    <p className="text-sm text-foreground text-center italic">"{testResult}"</p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1.5 text-left max-w-xs mx-auto">
@@ -472,7 +508,6 @@ export default function Onboarding() {
 
               {step > 0 && step < 4 && (
                 <div className="flex items-center gap-2">
-                  {/* Skip for model/permission steps */}
                   {(step >= 1 && step <= 3) && (
                     <button
                       onClick={() => setStep(step + 1)}
@@ -484,7 +519,6 @@ export default function Onboarding() {
                   )}
                   <button
                     onClick={() => setStep(step + 1)}
-                    disabled={!canGoNext()}
                     className="flex items-center gap-1.5 px-5 py-2 text-sm rounded-lg
                                bg-primary text-primary-foreground hover:bg-primary/90
                                transition-colors disabled:opacity-40 disabled:pointer-events-none"

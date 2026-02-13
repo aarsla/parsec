@@ -1,6 +1,4 @@
-mod audio_converter;
 mod escape_monitor;
-mod file_queue;
 mod frontmost;
 mod history;
 mod hotkey;
@@ -307,6 +305,7 @@ struct ModelStatusEntry {
     id: String,
     name: String,
     engine: model_registry::Engine,
+    description: String,
     size_label: String,
     ready: bool,
     disk_size: u64,
@@ -321,6 +320,7 @@ fn get_all_models_status() -> Vec<ModelStatusEntry> {
             id: m.id.to_string(),
             name: m.name.to_string(),
             engine: m.engine,
+            description: m.description.to_string(),
             size_label: model_registry::size_label(m.approx_bytes),
             ready: model_registry::model_ready(m.id),
             disk_size: model_registry::model_disk_size(m.id),
@@ -354,48 +354,6 @@ fn check_onboarding_needed() -> OnboardingStatus {
         model_ready: model_registry::any_model_ready(),
         mic_granted: mic == "granted",
         accessibility_granted: a11y == "granted",
-    }
-}
-
-#[tauri::command]
-fn transcribe_file(app: tauri::AppHandle, path: String) -> Result<(), String> {
-    if file_queue::is_processing(&app) {
-        return Err("Already processing a file".into());
-    }
-    tauri::async_runtime::spawn(async move {
-        if let Err(e) = file_queue::transcribe_file(&app, &path).await {
-            eprintln!("File transcription error: {}", e);
-        }
-    });
-    Ok(())
-}
-
-#[tauri::command]
-fn cancel_file_transcription(app: tauri::AppHandle) {
-    file_queue::cancel(&app);
-}
-
-#[tauri::command]
-fn reveal_in_finder(path: String) {
-    #[cfg(target_os = "macos")]
-    {
-        let _ = std::process::Command::new("open").arg("-R").arg(&path).spawn();
-    }
-    #[cfg(target_os = "windows")]
-    {
-        let _ = std::process::Command::new("explorer").arg(format!("/select,{}", path)).spawn();
-    }
-}
-
-#[tauri::command]
-fn open_in_editor(path: String) {
-    #[cfg(target_os = "macos")]
-    {
-        let _ = std::process::Command::new("open").arg(&path).spawn();
-    }
-    #[cfg(target_os = "windows")]
-    {
-        let _ = std::process::Command::new("cmd").args(["/C", "start", "", &path]).spawn();
     }
 }
 
@@ -718,7 +676,6 @@ fn show_onboarding(app: tauri::AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
@@ -758,10 +715,6 @@ pub fn run() {
             check_for_updates,
             install_update,
             restart_app,
-            transcribe_file,
-            cancel_file_transcription,
-            reveal_in_finder,
-            open_in_editor,
         ])
         .setup(|app| {
             // Create overlay window (hidden by default)
@@ -776,8 +729,6 @@ pub fn run() {
                 .build(app)?;
             let settings_item =
                 MenuItemBuilder::with_id("settings", "Settings").build(app)?;
-            let transcribe_file_item =
-                MenuItemBuilder::with_id("transcribe_file", "Transcribe File...").build(app)?;
             let updates_item =
                 MenuItemBuilder::with_id("updates", "Check for Updates...").build(app)?;
             let quit_item = MenuItemBuilder::with_id("quit", "Quit AudioShift").build(app)?;
@@ -785,7 +736,6 @@ pub fn run() {
                 .item(&status_item)
                 .separator()
                 .item(&settings_item)
-                .item(&transcribe_file_item)
                 .item(&updates_item)
                 .separator()
                 .item(&quit_item)
@@ -800,30 +750,6 @@ pub fn run() {
                 .on_menu_event(move |app, event| match event.id().as_ref() {
                     "settings" => {
                         let _ = create_settings_window(app);
-                    }
-                    "transcribe_file" => {
-                        // Open settings to Files page first — ensures a visible
-                        // window exists so macOS won't surface the hidden overlay.
-                        if let Ok(store) = app.store("settings.json") {
-                            let _ = store.set("pendingSection", serde_json::json!("files"));
-                        }
-                        let _ = create_settings_window(app);
-                        app.emit("navigate-section", "files").ok();
-
-                        let handle = app.clone();
-                        tauri::async_runtime::spawn(async move {
-                            use tauri_plugin_dialog::DialogExt;
-                            let file = handle.dialog()
-                                .file()
-                                .add_filter("Media Files", &["mp3", "m4a", "ogg", "wav", "flac", "aac", "opus", "wma", "mp4", "m4v", "mkv", "webm", "mov"])
-                                .blocking_pick_file();
-
-                            if let Some(fp) = file {
-                                if let Some(path_str) = fp.as_path().map(|p| p.to_string_lossy().to_string()) {
-                                    let _ = file_queue::transcribe_file(&handle, &path_str).await;
-                                }
-                            }
-                        });
                     }
                     "updates" => {
                         // Store pending section so fresh windows pick it up on mount

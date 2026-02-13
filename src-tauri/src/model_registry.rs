@@ -11,6 +11,7 @@ pub struct ModelDef {
     pub id: &'static str,
     pub name: &'static str,
     pub engine: Engine,
+    pub description: &'static str,
     pub approx_bytes: u64,
     pub files: &'static [ModelFile],
 }
@@ -28,6 +29,7 @@ pub static MODELS: &[ModelDef] = &[
         id: "parakeet-tdt-0.6b-v3",
         name: "Parakeet TDT 0.6b v3",
         engine: Engine::Parakeet,
+        description: "Fast, accurate English transcription. Best balance of speed and quality.",
         approx_bytes: 680_000_000,
         files: &[
             ModelFile { url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/main/encoder-model.int8.onnx", rename_to: Some("encoder-model.onnx") },
@@ -41,6 +43,7 @@ pub static MODELS: &[ModelDef] = &[
         id: "whisper-large-v3-turbo-q5_0",
         name: "Whisper Large v3 Turbo (Q5)",
         engine: Engine::Whisper,
+        description: "Multilingual, highly accurate. Supports 100+ languages.",
         approx_bytes: 574_000_000,
         files: &[
             ModelFile { url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin", rename_to: Some("model.bin") },
@@ -50,6 +53,7 @@ pub static MODELS: &[ModelDef] = &[
         id: "whisper-large-v3-turbo-q8_0",
         name: "Whisper Large v3 Turbo (Q8)",
         engine: Engine::Whisper,
+        description: "Multilingual, highest accuracy. Higher quality quantization.",
         approx_bytes: 874_000_000,
         files: &[
             ModelFile { url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q8_0.bin", rename_to: Some("model.bin") },
@@ -59,6 +63,7 @@ pub static MODELS: &[ModelDef] = &[
         id: "whisper-medium-q5_0",
         name: "Whisper Medium (Q5)",
         engine: Engine::Whisper,
+        description: "Multilingual, moderate speed and accuracy. Good middle ground.",
         approx_bytes: 539_000_000,
         files: &[
             ModelFile { url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium-q5_0.bin", rename_to: Some("model.bin") },
@@ -68,6 +73,7 @@ pub static MODELS: &[ModelDef] = &[
         id: "whisper-small-q5_1",
         name: "Whisper Small (Q5)",
         engine: Engine::Whisper,
+        description: "Multilingual, fastest Whisper model. Smallest download.",
         approx_bytes: 190_000_000,
         files: &[
             ModelFile { url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-q5_1.bin", rename_to: Some("model.bin") },

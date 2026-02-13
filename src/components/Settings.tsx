@@ -7,7 +7,7 @@ import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import {
   Mic, ClipboardPaste, Info,
   Settings as SettingsIcon, Shield, Palette,
-  Clock, Download, Box, FileAudio,
+  Clock, Download, Box,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import History from "@/components/History";
@@ -16,7 +16,6 @@ import {
   type Section, type ThemeMode, type AccentColor, type StartSound,
   type OverlayTheme, type OverlayPosition, type PermissionStatus,
   type ModelStatusEntry, type DownloadProgress, type UpdateStatus,
-  type FileTranscriptionStatus,
 } from "./settings/shared";
 import GeneralPage from "./settings/GeneralPage";
 import AppearancePage from "./settings/AppearancePage";
@@ -26,8 +25,6 @@ import OutputPage from "./settings/OutputPage";
 import ModelPage from "./settings/ModelPage";
 import UpdatesPage from "./settings/UpdatesPage";
 import AboutPage from "./settings/AboutPage";
-import FilesPage from "./settings/FilesPage";
-
 export default function Settings() {
   const [activeSection, setActiveSection] = useState<Section>("general");
   const [devices, setDevices] = useState<string[]>([]);
@@ -54,12 +51,8 @@ export default function Settings() {
   const [testingMic, setTestingMic] = useState(false);
   const [models, setModels] = useState<ModelStatusEntry[]>([]);
   const [liveModel, setLiveModel] = useState("parakeet-tdt-0.6b-v3");
-  const [fileModel, setFileModel] = useState("parakeet-tdt-0.6b-v3");
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
   const [downloadingModelId, setDownloadingModelId] = useState<string | null>(null);
-  const [fileStatus, setFileStatus] = useState<FileTranscriptionStatus>({
-    status: "idle", progress: 0, elapsedSecs: 0, estimatedSecs: 0,
-  });
   const [monitorLevel, setMonitorLevel] = useState(0);
   const monitorSmoothed = useRef(0);
   const monitorRaf = useRef(0);
@@ -130,13 +123,6 @@ export default function Settings() {
     const win = getCurrentWebviewWindow();
     const unlisten = win.onFocusChanged(({ payload: focused }) => {
       if (focused) checkPermissions();
-    });
-    return () => { unlisten.then((fn) => fn()); };
-  }, []);
-
-  useEffect(() => {
-    const unlisten = listen<FileTranscriptionStatus>("file-transcription-status", (event) => {
-      setFileStatus(event.payload);
     });
     return () => { unlisten.then((fn) => fn()); };
   }, []);
@@ -286,8 +272,6 @@ export default function Settings() {
 
       const savedLiveModel = await store.get<string>("liveModel");
       if (savedLiveModel) setLiveModel(savedLiveModel);
-      const savedFileModel = await store.get<string>("fileModel");
-      if (savedFileModel) setFileModel(savedFileModel);
 
       const savedAutoUpdate = await store.get<boolean>("autoUpdate");
       if (savedAutoUpdate !== null && savedAutoUpdate !== undefined) {
@@ -451,11 +435,6 @@ export default function Settings() {
         const store = await load("settings.json");
         await store.set("liveModel", firstReady);
       }
-      if (modelId === fileModel) {
-        setFileModel(firstReady);
-        const store = await load("settings.json");
-        await store.set("fileModel", firstReady);
-      }
     } catch (e) {
       console.error("Failed to delete model:", e);
     }
@@ -468,16 +447,6 @@ export default function Settings() {
       await store.set("liveModel", modelId);
     } catch (e) {
       console.error("Failed to save live model:", e);
-    }
-  };
-
-  const handleFileModelChange = async (modelId: string) => {
-    setFileModel(modelId);
-    try {
-      const store = await load("settings.json");
-      await store.set("fileModel", modelId);
-    } catch (e) {
-      console.error("Failed to save file model:", e);
     }
   };
 
@@ -519,7 +488,6 @@ export default function Settings() {
     { id: "recording", label: "Recording", icon: <Mic size={16} /> },
     { id: "output", label: "Output", icon: <ClipboardPaste size={16} /> },
     { id: "history", label: "History", icon: <Clock size={16} /> },
-    { id: "files", label: "Files", icon: <FileAudio size={16} /> },
     { id: "model", label: "Model", icon: <Box size={16} /> },
     { id: "updates", label: "Updates", icon: <Download size={16} /> },
     { id: "about", label: "About", icon: <Info size={16} /> },
@@ -582,20 +550,16 @@ export default function Settings() {
             onPasteModeChange={handlePasteModeChange}
           />
         );
-      case "files":
-        return <FilesPage fileStatus={fileStatus} />;
       case "model":
         return (
           <ModelPage
             models={models}
             liveModel={liveModel}
-            fileModel={fileModel}
             downloadProgress={downloadProgress}
             downloadingModelId={downloadingModelId}
             onDownloadModel={handleDownloadModel}
             onDeleteModel={handleDeleteModel}
             onLiveModelChange={handleLiveModelChange}
-            onFileModelChange={handleFileModelChange}
           />
         );
       case "updates":
@@ -659,32 +623,6 @@ export default function Settings() {
                 />
               </div>
             </div>
-          </div>
-        )}
-        {(fileStatus.status === "converting" || fileStatus.status === "transcribing") && (
-          <div className="px-3 pb-2">
-            <button
-              onClick={() => setActiveSection("files")}
-              className="w-full text-left px-3 py-2 rounded-lg bg-sidebar-accent/50 hover:bg-sidebar-accent/70 transition-colors"
-            >
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <FileAudio size={12} className="text-primary animate-pulse shrink-0" />
-                <span className="text-[11px] text-foreground truncate">
-                  {fileStatus.status === "converting" ? "Converting..." : `Transcribing... ${fileStatus.progress}%`}
-                </span>
-              </div>
-              <div className="h-1 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-1000"
-                  style={{ width: `${Math.max(fileStatus.progress, 2)}%` }}
-                />
-              </div>
-              {fileStatus.fileName && (
-                <p className="text-[10px] text-muted-foreground mt-1 truncate">
-                  {fileStatus.fileName}
-                </p>
-              )}
-            </button>
           </div>
         )}
         <div className="px-3 pb-3">

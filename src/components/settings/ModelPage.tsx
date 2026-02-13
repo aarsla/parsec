@@ -4,13 +4,11 @@ import { SectionCard, SettingRow, formatBytes, type ModelStatusEntry, type Downl
 interface Props {
   models: ModelStatusEntry[];
   liveModel: string;
-  fileModel: string;
   downloadProgress: DownloadProgress | null;
   downloadingModelId: string | null;
   onDownloadModel: (modelId: string) => void;
   onDeleteModel: (modelId: string) => void;
   onLiveModelChange: (modelId: string) => void;
-  onFileModelChange: (modelId: string) => void;
 }
 
 function EngineBadge({ engine }: { engine: string }) {
@@ -70,13 +68,11 @@ function ModelSelect({
 export default function ModelPage({
   models,
   liveModel,
-  fileModel,
   downloadProgress,
   downloadingModelId,
   onDownloadModel,
   onDeleteModel,
   onLiveModelChange,
-  onFileModelChange,
 }: Props) {
   return (
     <div className="space-y-4">
@@ -86,13 +82,6 @@ export default function ModelPage({
           onChange={onLiveModelChange}
           models={models}
           label="Live Recording"
-        />
-        <div className="border-t border-border" />
-        <ModelSelect
-          value={fileModel}
-          onChange={onFileModelChange}
-          models={models}
-          label="File Transcription"
         />
       </SectionCard>
 
@@ -115,7 +104,10 @@ export default function ModelPage({
                     <span className="text-sm font-medium text-foreground">{model.name}</span>
                     <EngineBadge engine={model.engine} />
                   </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {model.description}
+                  </p>
+                  <div className="text-[11px] text-muted-foreground/70 mt-0.5">
                     {model.ready
                       ? `${formatBytes(model.diskSize)} on disk`
                       : `~${model.sizeLabel} download`}

@@ -1,6 +1,5 @@
 use parking_lot::Mutex;
 use std::fmt;
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tauri::menu::MenuItem;
 use tauri::tray::TrayIcon;
@@ -30,8 +29,6 @@ pub struct AppState {
     tray: Mutex<Option<TrayIcon>>,
     tray_status_item: Mutex<Option<MenuItem<tauri::Wry>>>,
     tray_updates_item: Mutex<Option<MenuItem<tauri::Wry>>>,
-    pub file_processing: AtomicBool,
-    pub file_cancel_requested: AtomicBool,
 }
 
 impl AppState {
@@ -47,8 +44,6 @@ impl AppState {
             tray: Mutex::new(None),
             tray_status_item: Mutex::new(None),
             tray_updates_item: Mutex::new(None),
-            file_processing: AtomicBool::new(false),
-            file_cancel_requested: AtomicBool::new(false),
         }
     }
 

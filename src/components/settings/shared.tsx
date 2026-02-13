@@ -4,21 +4,8 @@ import { Check, Sun, Moon, Monitor } from "lucide-react";
 // --- Types ---
 
 export type PermissionStatus = "granted" | "denied" | "unknown" | "checking";
-export type Section = "general" | "appearance" | "permissions" | "recording" | "output" | "history" | "files" | "model" | "updates" | "about";
+export type Section = "general" | "appearance" | "permissions" | "recording" | "output" | "history" | "model" | "updates" | "about";
 
-export interface FileTranscriptionStatus {
-  status: "idle" | "converting" | "transcribing" | "completed" | "error";
-  fileName?: string;
-  sourcePath?: string;
-  progress: number;
-  elapsedSecs: number;
-  estimatedSecs: number;
-  durationSecs?: number;
-  decodeSecs?: number;
-  resultText?: string;
-  outputPath?: string;
-  error?: string;
-}
 export type ThemeMode = "light" | "dark" | "system";
 export type AccentColor = "zinc" | "orange" | "teal" | "green" | "blue" | "purple" | "red";
 export type StartSound = "chirp" | "ping" | "blip" | "none";
@@ -33,6 +20,7 @@ export interface ModelStatusEntry {
   id: string;
   name: string;
   engine: "parakeet" | "whisper";
+  description: string;
   sizeLabel: string;
   ready: boolean;
   diskSize: number;
