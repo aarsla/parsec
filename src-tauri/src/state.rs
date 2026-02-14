@@ -41,7 +41,7 @@ impl AppState {
             hotkey: Mutex::new(if cfg!(target_os = "macos") {
                 "Alt+Space"
             } else {
-                "Ctrl+Space"
+                "Ctrl+Shift+Space"
             }.to_string()),
             tray: Mutex::new(None),
             tray_status_item: Mutex::new(None),

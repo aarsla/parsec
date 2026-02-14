@@ -66,7 +66,7 @@ pub fn onboarding_needed(app: &tauri::AppHandle) -> bool {
     let model = model_registry::any_model_ready();
     let mic = commands::check_microphone_permission();
     let a11y = commands::check_accessibility_permission();
-    let needed = !completed && (!model || mic != "granted" || a11y != "granted");
+    let needed = !completed;
     eprintln!(
         "[audioshift] onboarding_needed: completed={}, model={}, mic={}, a11y={} → {}",
         completed, model, mic, a11y, needed

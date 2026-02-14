@@ -447,7 +447,11 @@ pub fn show_onboarding(app: tauri::AppHandle) {
 
 #[tauri::command]
 pub fn restart_app(app: tauri::AppHandle) {
-    app.restart();
+    // Delay restart to avoid deadlock when called from IPC handler
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        app.restart();
+    });
 }
 
 #[tauri::command]

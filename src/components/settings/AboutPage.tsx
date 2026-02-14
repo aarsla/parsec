@@ -21,7 +21,7 @@ export default function AboutPage({ liveModelName, liveModelSize }: { liveModelN
           <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
             Runs entirely on your device. Nothing leaves your machine.
           </p>
-          <p className="text-[11px] text-muted-foreground/60 mt-1 font-mono">v1.0.0</p>
+          <p className="text-[11px] text-muted-foreground/60 mt-1 font-mono">v1.0.1</p>
         </div>
         <div className="shrink-0 flex items-center pr-2">
           <div className="flex items-center gap-[3px] h-12">
@@ -96,7 +96,8 @@ export default function AboutPage({ liveModelName, liveModelSize }: { liveModelN
             onClick={async () => {
               const store = await load("settings.json");
               await store.delete("onboardingCompleted");
-              invoke("show_onboarding");
+              await store.delete("liveModel");
+              invoke("restart_app");
             }}
             className="px-2.5 py-1 text-xs rounded-md bg-secondary border border-border
                        hover:bg-accent text-muted-foreground transition-colors"

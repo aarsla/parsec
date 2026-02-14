@@ -52,14 +52,17 @@ function formatMB(bytes: number): string {
 }
 
 function shortcutDisplay(shortcut: string): string {
-  return shortcut
-    .replace("CmdOrCtrl", "\u2318")
-    .replace("Cmd", "\u2318")
-    .replace("Ctrl", "\u2303")
-    .replace("Shift", "\u21E7")
-    .replace("Alt", "\u2325")
-    .replace("Space", "Space")
-    .replace(/\+/g, "");
+  if (navigator.userAgent.includes("Mac")) {
+    return shortcut
+      .replace("CmdOrCtrl", "\u2318")
+      .replace("Cmd", "\u2318")
+      .replace("Ctrl", "\u2303")
+      .replace("Shift", "\u21E7")
+      .replace("Alt", "\u2325")
+      .replace("Space", "Space")
+      .replace(/\+/g, "");
+  }
+  return shortcut.replace(/\+/g, " + ");
 }
 
 export default function Onboarding() {
@@ -429,10 +432,10 @@ export default function Onboarding() {
               </div>
 
               {/* Test capture area */}
-              <div className="max-w-xs mx-auto">
+              <div className="mx-auto">
                 {testState === "recording" && (
-                  <div className="flex items-center justify-center gap-2 py-3 text-sm text-red-500">
-                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  <div className="flex items-center justify-center gap-2 py-3 text-sm text-red-500 whitespace-nowrap">
+                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
                     Listening... press <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-xs text-foreground">{shortcutDisplay(hotkey)}</kbd> to stop
                   </div>
                 )}

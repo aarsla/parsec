@@ -30,7 +30,11 @@ fn shortcut_handler(app: &AppHandle, _shortcut: &Shortcut, event: tauri_plugin_g
 
 pub fn register_default_hotkey(app: &App) -> Result<(), Box<dyn std::error::Error>> {
     let shortcut: Shortcut = DEFAULT_HOTKEY.parse()?;
-    app.global_shortcut().on_shortcut(shortcut, shortcut_handler)?;
+    let gs = app.global_shortcut();
+    // On restart, the previous instance may not have released the hotkey yet.
+    // Unregister first to avoid "already registered" errors.
+    let _ = gs.unregister(shortcut);
+    gs.on_shortcut(shortcut, shortcut_handler)?;
     Ok(())
 }
 

@@ -8,14 +8,17 @@ import { load } from "@tauri-apps/plugin-store";
 import Waveform from "./Waveform";
 
 function shortcutToDisplay(shortcut: string): string {
-  return shortcut
-    .replace("CmdOrCtrl", "\u2318")
-    .replace("Cmd", "\u2318")
-    .replace("Ctrl", "\u2303")
-    .replace("Shift", "\u21E7")
-    .replace("Alt", "\u2325")
-    .replace("Space", "Space")
-    .replace(/\+/g, " ");
+  if (navigator.userAgent.includes("Mac")) {
+    return shortcut
+      .replace("CmdOrCtrl", "\u2318")
+      .replace("Cmd", "\u2318")
+      .replace("Ctrl", "\u2303")
+      .replace("Shift", "\u21E7")
+      .replace("Alt", "\u2325")
+      .replace("Space", "Space")
+      .replace(/\+/g, " ");
+  }
+  return shortcut.replace(/\+/g, " + ");
 }
 
 export type OverlayTheme = "default" | "minimal" | "glass" | "compact";
