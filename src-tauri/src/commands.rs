@@ -340,7 +340,19 @@ pub fn get_all_models_status() -> Vec<ModelStatusEntry> {
 
 #[tauri::command]
 pub async fn download_model(app: tauri::AppHandle, model_id: String) -> Result<(), String> {
-    transcriber::ensure_model(&app, &model_id).await.map_err(|e| e.to_string())
+    transcriber::ensure_model(&app, &model_id).await.map_err(|e| e.to_string())?;
+
+    // Preload into memory so first transcription (e.g. onboarding test) is instant
+    let mid = model_id.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::task::spawn_blocking(move || {
+            if let Err(e) = transcriber::preload_model(&mid) {
+                eprintln!("[audioshift] Model preload after download failed: {}", e);
+            }
+        }).await.ok();
+    });
+
+    Ok(())
 }
 
 #[tauri::command]
