@@ -132,9 +132,10 @@ export default function Onboarding() {
     return () => { unlisten.then((fn) => fn()); };
   }, []);
 
-  // Poll status on active steps as backup
+  // Poll status on permission steps and Ready as backup for system settings changes
   useEffect(() => {
-    if (step < 1) return;
+    const currentStep = STEPS[step];
+    if (currentStep !== "Microphone" && currentStep !== "Accessibility" && currentStep !== "Ready") return;
     const interval = setInterval(async () => {
       const s = await invoke<OnboardingStatus>("check_onboarding_needed");
       setStatus(s);

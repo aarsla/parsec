@@ -130,10 +130,19 @@ export default function Settings() {
   useEffect(() => {
     const win = getCurrentWebviewWindow();
     const unlisten = win.onFocusChanged(({ payload: focused }) => {
-      if (focused) checkPermissions();
+      if (focused) {
+        checkPermissions();
+        invoke<string[]>("get_input_devices").then((devs) => {
+          setDevices(devs);
+          // If selected device was unplugged, reset to default
+          if (selectedDevice !== "default" && !devs.includes(selectedDevice)) {
+            setSelectedDevice("default");
+          }
+        });
+      }
     });
     return () => { unlisten.then((fn) => fn()); };
-  }, []);
+  }, [selectedDevice]);
 
   useEffect(() => {
     const unlisten = listen<string>("live-model-changed", (event) => {
@@ -483,29 +492,35 @@ export default function Settings() {
   };
 
   const handleLiveModelChange = async (modelId: string) => {
+    const prev = liveModel;
     setLiveModel(modelId);
     try {
       await invoke("set_live_model", { modelId });
     } catch (e) {
       console.error("Failed to save live model:", e);
+      setLiveModel(prev);
     }
   };
 
   const handleLanguageChange = async (language: string) => {
+    const prev = transcriptionLanguage;
     setTranscriptionLanguage(language);
     try {
       await invoke("set_transcription_language", { language });
     } catch (e) {
       console.error("Failed to save transcription language:", e);
+      setTranscriptionLanguage(prev);
     }
   };
 
   const handleTranslateChange = async (enabled: boolean) => {
+    const prev = translateToEnglish;
     setTranslateToEnglish(enabled);
     try {
       await invoke("set_translate_to_english", { enabled });
     } catch (e) {
       console.error("Failed to save translate setting:", e);
+      setTranslateToEnglish(prev);
     }
   };
 
