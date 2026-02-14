@@ -34,8 +34,8 @@ export default function Waveform({ amplitudes, barColor = "59, 130, 246" }: Prop
     const centerY = h / 2;
 
     data.forEach((amp, i) => {
-      const normalized = Math.min(amp * 8, 1);
-      const barHeight = Math.max(2, normalized * (h * 0.8));
+      const normalized = Math.min(amp * 30, 1);
+      const barHeight = Math.max(3, normalized * (h * 0.9));
 
       ctx.fillStyle = `rgba(${barColor}, ${0.5 + normalized * 0.5})`;
       ctx.beginPath();

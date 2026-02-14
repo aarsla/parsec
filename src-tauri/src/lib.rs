@@ -11,11 +11,12 @@ mod recorder;
 mod state;
 mod transcriber;
 mod tray;
+mod tray_icons;
 mod updater;
 mod windows;
 
 use state::AppState;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use tauri_plugin_store::StoreExt;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -124,12 +125,18 @@ pub fn run() {
                     .and_then(|s| s.get("liveModel"))
                     .and_then(|v| v.as_str().map(String::from))
                     .unwrap_or_else(|| model_registry::DEFAULT_MODEL_ID.to_string());
+                let handle = app.handle().clone();
                 tauri::async_runtime::spawn(async move {
-                    tokio::task::spawn_blocking(move || {
-                        if let Err(e) = transcriber::preload_model(&live_model) {
-                            eprintln!("[audioshift] Model preload failed: {}", e);
-                        }
-                    }).await.ok();
+                    if model_registry::model_ready(&live_model) {
+                        let _ = handle.emit("model-preload-start", &live_model);
+                        let mid = live_model.clone();
+                        tokio::task::spawn_blocking(move || {
+                            if let Err(e) = transcriber::preload_model(&mid) {
+                                eprintln!("[audioshift] Model preload failed: {}", e);
+                            }
+                        }).await.ok();
+                        let _ = handle.emit("model-preload-done", ());
+                    }
                 });
             }
 

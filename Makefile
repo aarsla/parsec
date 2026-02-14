@@ -1,6 +1,13 @@
-.PHONY: dev build run build-mas pkg run-mas check check-mas check-ts check-all
+.PHONY: dev clean-dev build run build-mas pkg run-mas check check-mas check-ts check-all
 
 dev:
+	pnpm tauri dev
+
+clean-dev:
+	-pkill -f AudioShift
+	-tccutil reset Microphone com.aarsla.audioshift
+	-tccutil reset Accessibility com.aarsla.audioshift
+	-rm -f "$(HOME)/Library/Application Support/com.aarsla.audioshift/settings.json"
 	pnpm tauri dev
 
 build:

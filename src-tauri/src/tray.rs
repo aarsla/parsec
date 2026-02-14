@@ -1,7 +1,9 @@
 use crate::commands;
 use crate::model_registry;
-use crate::state::{AppState, Status};
+use crate::state::{AppState, Status, TrayAnimation};
+use crate::tray_icons;
 use crate::windows;
+use std::time::Duration;
 #[cfg(feature = "updater")]
 use tauri::Emitter;
 use tauri::{
@@ -13,7 +15,6 @@ use tauri::{
 use tauri_plugin_store::StoreExt;
 
 const TRAY_ICON_NORMAL: &[u8] = include_bytes!("../icons/tray-icon.png");
-const TRAY_ICON_RECORDING: &[u8] = include_bytes!("../icons/tray-icon-recording.png");
 
 pub fn status_menu_text(status: Status, hotkey: &str) -> String {
     let hint = hotkey_display_hint(hotkey);
@@ -37,15 +38,20 @@ fn hotkey_display_hint(hotkey: &str) -> String {
 pub fn update_tray_for_status(app: &tauri::AppHandle, status: Status) {
     let state = app.state::<AppState>();
 
-    // Update icon
-    if let Some(tray) = state.tray() {
-        let icon_bytes = match status {
-            Status::Recording => TRAY_ICON_RECORDING,
-            _ => TRAY_ICON_NORMAL,
-        };
-        if let Ok(icon) = Image::from_bytes(icon_bytes) {
-            let _ = tray.set_icon(Some(icon));
-            let _ = tray.set_icon_as_template(true);
+    match status {
+        Status::Recording => {
+            // Animation loop takes over icon rendering
+            state.set_animation(TrayAnimation::Recording { amplitude: 0.0 });
+        }
+        _ => {
+            // Stop any animation, restore static icon
+            state.set_animation(TrayAnimation::None);
+            if let Some(tray) = state.tray() {
+                if let Ok(icon) = Image::from_bytes(TRAY_ICON_NORMAL) {
+                    let _ = tray.set_icon(Some(icon));
+                    let _ = tray.set_icon_as_template(true);
+                }
+            }
         }
     }
 
@@ -54,6 +60,78 @@ pub fn update_tray_for_status(app: &tauri::AppHandle, status: Status) {
         let text = status_menu_text(status, &state.hotkey());
         let _ = status_item.set_text(text);
     }
+}
+
+fn set_tray_icon_rgba(app: &tauri::AppHandle, rgba: Vec<u8>) {
+    let state = app.state::<AppState>();
+    if let Some(tray) = state.tray() {
+        let icon = Image::new_owned(rgba, tray_icons::ICON_SIZE, tray_icons::ICON_SIZE);
+        let _ = tray.set_icon(Some(icon));
+        let _ = tray.set_icon_as_template(true);
+    }
+}
+
+fn start_animation_loop(app: &tauri::AppHandle) {
+    let state = app.state::<AppState>();
+    let mut rx = match state.take_animation_rx() {
+        Some(rx) => rx,
+        None => return,
+    };
+    let handle = app.clone();
+
+    tauri::async_runtime::spawn(async move {
+        let mut preload_index: usize = 0;
+        let mut smoothed_amp: f32 = 0.0;
+        let mut tick: u32 = 0;
+
+        loop {
+            let anim = rx.borrow_and_update().clone();
+
+            match anim {
+                TrayAnimation::None => {
+                    smoothed_amp = 0.0;
+                    tick = 0;
+                    if rx.changed().await.is_err() {
+                        break;
+                    }
+                }
+                TrayAnimation::Preloading => {
+                    let rgba = tray_icons::preload_frame(preload_index);
+                    set_tray_icon_rgba(&handle, rgba);
+                    preload_index += 1;
+
+                    tokio::select! {
+                        _ = tokio::time::sleep(Duration::from_millis(200)) => {}
+                        result = rx.changed() => {
+                            if result.is_err() { break; }
+                            preload_index = 0;
+                        }
+                    }
+                }
+                TrayAnimation::Recording { amplitude } => {
+                    // Scale raw amplitude (typically 0.0–0.1 for speech) to visual range
+                    let scaled = (amplitude * 8.0).sqrt().clamp(0.0, 1.0);
+                    // Smooth: fast attack, slow decay for natural VU meter feel
+                    if scaled > smoothed_amp {
+                        smoothed_amp += (scaled - smoothed_amp) * 0.5;
+                    } else {
+                        smoothed_amp += (scaled - smoothed_amp) * 0.15;
+                    }
+
+                    let rgba = tray_icons::recording_frame(tick, smoothed_amp);
+                    set_tray_icon_rgba(&handle, rgba);
+                    tick = tick.wrapping_add(1);
+
+                    tokio::select! {
+                        _ = tokio::time::sleep(Duration::from_millis(100)) => {}
+                        result = rx.changed() => {
+                            if result.is_err() { break; }
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
 
 pub fn onboarding_needed(app: &tauri::AppHandle) -> bool {
@@ -174,6 +252,51 @@ pub fn build_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
             }
         }
     });
+
+    // Listen for model preload start → animate tray
+    let handle = app.handle().clone();
+    app.listen("model-preload-start", move |_event| {
+        let state = handle.state::<AppState>();
+        state.set_animation(TrayAnimation::Preloading);
+        if let Some(status_item) = state.tray_status_item() {
+            let _ = status_item.set_text("Loading model...");
+        }
+    });
+
+    // Listen for model preload done → stop animation, restore static icon
+    let handle = app.handle().clone();
+    app.listen("model-preload-done", move |_event| {
+        let state = handle.state::<AppState>();
+        let status = state.status();
+        // Only restore idle icon if not recording (recording has its own animation)
+        if status != Status::Recording {
+            state.set_animation(TrayAnimation::None);
+            if let Some(tray) = state.tray() {
+                if let Ok(icon) = Image::from_bytes(TRAY_ICON_NORMAL) {
+                    let _ = tray.set_icon(Some(icon));
+                    let _ = tray.set_icon_as_template(true);
+                }
+            }
+        }
+        if let Some(status_item) = state.tray_status_item() {
+            let text = status_menu_text(status, &state.hotkey());
+            let _ = status_item.set_text(text);
+        }
+    });
+
+    // Listen for audio amplitude → update recording animation
+    let handle = app.handle().clone();
+    app.listen("audio-amplitude", move |event| {
+        let state = handle.state::<AppState>();
+        if state.status() == Status::Recording {
+            if let Ok(amplitude) = event.payload().parse::<f32>() {
+                state.set_animation(TrayAnimation::Recording { amplitude });
+            }
+        }
+    });
+
+    // Start the animation loop
+    start_animation_loop(app.handle());
 
     Ok(())
 }
