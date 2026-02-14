@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
-import { Search, Copy, Trash2, Check, ChevronLeft, ChevronRight, X, FileText } from "lucide-react";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { Search, Copy, Trash2, Check, ChevronLeft, ChevronRight, X, FileText, FolderOpen } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -14,6 +15,13 @@ interface HistoryEntry {
   app_name: string | null;
   window_title: string | null;
   char_count: number;
+  dir_path: string | null;
+  duration_ms: number;
+  processing_time_ms: number;
+  model_id: string;
+  language: string | null;
+  translate: boolean;
+  app_version: string;
 }
 
 function formatFullDate(timestamp: number): string {
@@ -63,7 +71,10 @@ export default function History() {
   const [copied, setCopied] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [page, setPage] = useState(0);
-  const [dateFilter, setDateFilter] = useState<"all" | "today" | "yesterday">("all");
+  const [dateFilter, setDateFilter] = useState<"all" | "today" | "yesterday">(() => {
+    const stored = localStorage.getItem("historyDateFilter");
+    return stored === "today" || stored === "yesterday" ? stored : "all";
+  });
   const [listWidth, setListWidth] = useState(256);
   const dragging = useRef(false);
   const PAGE_SIZE = 15;
@@ -243,7 +254,7 @@ export default function History() {
             {([["today", "Today"], ["yesterday", "Yesterday"], ["all", "All"]] as const).map(([id, label]) => (
               <button
                 key={id}
-                onClick={() => setDateFilter(id)}
+                onClick={() => { setDateFilter(id); localStorage.setItem("historyDateFilter", id); }}
                 className={`flex-1 px-1.5 py-0.5 rounded text-[11px] transition-colors ${
                   dateFilter === id
                     ? "bg-background text-foreground shadow-sm"
@@ -415,8 +426,71 @@ export default function History() {
                     <span className="text-xs text-muted-foreground">Characters</span>
                     <span className="text-xs text-foreground">{selected.char_count.toLocaleString()}</span>
                   </div>
+                  <div className="flex items-center justify-between px-4 py-2.5">
+                    <span className="text-xs text-muted-foreground">Duration</span>
+                    <span className="text-xs text-foreground">
+                      {selected.duration_ms >= 1000
+                        ? `${(selected.duration_ms / 1000).toFixed(1)}s`
+                        : `${selected.duration_ms}ms`}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-2.5">
+                    <span className="text-xs text-muted-foreground">Processing Time</span>
+                    <span className="text-xs text-foreground">
+                      {selected.processing_time_ms >= 1000
+                        ? `${(selected.processing_time_ms / 1000).toFixed(1)}s`
+                        : `${selected.processing_time_ms}ms`}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-2.5">
+                    <span className="text-xs text-muted-foreground">Model</span>
+                    <span className="text-xs text-foreground">{selected.model_id}</span>
+                  </div>
+                  {selected.language && (
+                    <div className="flex items-center justify-between px-4 py-2.5">
+                      <span className="text-xs text-muted-foreground">Language</span>
+                      <span className="text-xs text-foreground">
+                        {selected.language}{selected.translate ? " → English" : ""}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {/* Files */}
+              {selected.dir_path && (
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                    Files
+                  </h3>
+                  <div className="bg-card border border-border rounded-lg divide-y divide-border">
+                    <div className="flex items-center justify-between px-4 py-2.5">
+                      <span className="text-xs text-muted-foreground">Audio Recording</span>
+                      <button
+                        onClick={() => revealItemInDir(selected.dir_path + "/output.wav")}
+                        className="flex items-center gap-1.5 px-2 py-1 text-xs rounded-md
+                                   bg-secondary border border-border hover:bg-accent
+                                   text-muted-foreground transition-colors"
+                      >
+                        <FolderOpen size={12} />
+                        {navigator.userAgent.includes("Mac") ? "Show in Finder" : "Show in Explorer"}
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between px-4 py-2.5">
+                      <span className="text-xs text-muted-foreground">Transcript</span>
+                      <button
+                        onClick={() => revealItemInDir(selected.dir_path + "/meta.json")}
+                        className="flex items-center gap-1.5 px-2 py-1 text-xs rounded-md
+                                   bg-secondary border border-border hover:bg-accent
+                                   text-muted-foreground transition-colors"
+                      >
+                        <FolderOpen size={12} />
+                        {navigator.userAgent.includes("Mac") ? "Show in Finder" : "Show in Explorer"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Delete */}
               <div>

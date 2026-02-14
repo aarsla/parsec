@@ -8,6 +8,8 @@ clean-dev:
 	-tccutil reset Microphone com.aarsla.audioshift
 	-tccutil reset Accessibility com.aarsla.audioshift
 	-rm -f "$(HOME)/Library/Application Support/com.aarsla.audioshift/settings.json"
+	-rm -f "$(HOME)/Library/Application Support/com.aarsla.audioshift/history.json"
+	-rm -rf "$(HOME)/Documents/AudioShift"
 	pnpm tauri dev
 
 build:
@@ -17,6 +19,8 @@ run: build
 	-tccutil reset Microphone
 	-tccutil reset Accessibility
 	-rm -f "$(HOME)/Library/Application Support/com.aarsla.audioshift/settings.json"
+	-rm -f "$(HOME)/Library/Application Support/com.aarsla.audioshift/history.json"
+	-rm -rf "$(HOME)/Documents/AudioShift"
 	open src-tauri/target/release/bundle/macos/AudioShift.app
 
 MAS_APP = src-tauri/target/aarch64-apple-darwin/release/bundle/macos/AudioShift.app

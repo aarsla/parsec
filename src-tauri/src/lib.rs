@@ -1,5 +1,6 @@
 mod commands;
 mod escape_monitor;
+mod file_storage;
 mod frontmost;
 mod history;
 mod hotkey;

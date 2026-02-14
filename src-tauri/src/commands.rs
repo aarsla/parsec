@@ -76,24 +76,38 @@ pub async fn stop_recording(
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
 
-    let text = transcriber::transcribe_from_samples(&app, samples, &live_model, language, translate)
+    let save_history = store
+        .as_ref()
+        .and_then(|s| s.get("saveHistory"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+
+    // Clone samples before transcription (transcriber consumes them) so we can save audio
+    let samples_for_save = if save_history { Some(samples.clone()) } else { None };
+    let duration_ms = (samples.len() as u64 * 1000) / 16000;
+
+    let transcribe_start = std::time::Instant::now();
+    let text = transcriber::transcribe_from_samples(&app, samples, &live_model, language.clone(), translate)
         .await
         .map_err(|e| e.to_string())?;
+    let processing_time_ms = transcribe_start.elapsed().as_millis() as u64;
 
     if !text.is_empty() {
-        // Save to history
-        let entry = history::HistoryEntry {
-            id: uuid::Uuid::new_v4().to_string(),
-            text: text.clone(),
-            timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_millis() as i64,
-            app_name,
-            window_title,
-            char_count: text.chars().count(),
-        };
-        history::add_entry(&app, entry);
+        if save_history {
+            if let Some(audio_samples) = samples_for_save {
+                history::add_entry(&app, history::RecordingInfo {
+                    samples: audio_samples,
+                    text: text.clone(),
+                    app_name,
+                    window_title,
+                    duration_ms,
+                    processing_time_ms,
+                    model_id: live_model.clone(),
+                    language,
+                    translate,
+                });
+            }
+        }
 
         if auto_paste {
             paster::paste_text(&text).map_err(|e| e.to_string())?;

@@ -1,10 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
-use tauri_plugin_store::StoreExt;
 
-const STORE_FILE: &str = "history.json";
-const STORE_KEY: &str = "entries";
-const MAX_ENTRIES: usize = 500;
+use crate::file_storage;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HistoryEntry {
@@ -14,61 +11,94 @@ pub struct HistoryEntry {
     pub app_name: Option<String>,
     pub window_title: Option<String>,
     pub char_count: usize,
+    pub dir_path: Option<String>,
+    pub duration_ms: u64,
+    pub processing_time_ms: u64,
+    pub model_id: String,
+    pub language: Option<String>,
+    pub translate: bool,
+    pub app_version: String,
 }
 
-pub fn add_entry(app: &AppHandle, entry: HistoryEntry) {
-    let store = match app.store(STORE_FILE) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("Failed to open history store: {e}");
-            return;
-        }
+pub struct RecordingInfo {
+    pub samples: Vec<f32>,
+    pub text: String,
+    pub app_name: Option<String>,
+    pub window_title: Option<String>,
+    pub duration_ms: u64,
+    pub processing_time_ms: u64,
+    pub model_id: String,
+    pub language: Option<String>,
+    pub translate: bool,
+}
+
+pub fn add_entry(app: &AppHandle, info: RecordingInfo) {
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
+    let id = timestamp.as_secs().to_string();
+    let char_count = info.text.chars().count();
+
+    let meta = file_storage::RecordingMeta {
+        id: id.clone(),
+        text: info.text,
+        timestamp: timestamp.as_millis() as i64,
+        app_name: info.app_name,
+        window_title: info.window_title,
+        char_count,
+        duration_ms: info.duration_ms,
+        processing_time_ms: info.processing_time_ms,
+        model_id: info.model_id,
+        language: info.language,
+        translate: info.translate,
+        app_version: env!("CARGO_PKG_VERSION").to_string(),
     };
 
-    let mut entries: Vec<HistoryEntry> = store
-        .get(STORE_KEY)
-        .and_then(|v| serde_json::from_value(v).ok())
-        .unwrap_or_default();
+    match file_storage::save_recording(&info.samples, &meta) {
+        Ok(_dir) => {}
+        Err(e) => {
+            eprintln!("[audioshift] Failed to save recording: {e}");
+        }
+    }
 
-    entries.insert(0, entry);
-    entries.truncate(MAX_ENTRIES);
-
-    store.set(STORE_KEY, serde_json::to_value(&entries).unwrap());
     let _ = app.emit("history-updated", ());
 }
 
-pub fn get_entries(app: &AppHandle) -> Vec<HistoryEntry> {
-    let store = match app.store(STORE_FILE) {
-        Ok(s) => s,
-        Err(_) => return Vec::new(),
-    };
-
-    store
-        .get(STORE_KEY)
-        .and_then(|v| serde_json::from_value(v).ok())
-        .unwrap_or_default()
+pub fn get_entries(_app: &AppHandle) -> Vec<HistoryEntry> {
+    let base = file_storage::recordings_dir();
+    file_storage::load_all_recordings()
+        .into_iter()
+        .map(|meta| {
+            let dir = base.join(&meta.id);
+            HistoryEntry {
+                id: meta.id,
+                text: meta.text,
+                timestamp: meta.timestamp,
+                app_name: meta.app_name,
+                window_title: meta.window_title,
+                char_count: meta.char_count,
+                dir_path: Some(dir.to_string_lossy().to_string()),
+                duration_ms: meta.duration_ms,
+                processing_time_ms: meta.processing_time_ms,
+                model_id: meta.model_id,
+                language: meta.language,
+                translate: meta.translate,
+                app_version: meta.app_version,
+            }
+        })
+        .collect()
 }
 
 pub fn delete_entry(app: &AppHandle, id: &str) {
-    let store = match app.store(STORE_FILE) {
-        Ok(s) => s,
-        Err(_) => return,
-    };
-
-    let mut entries: Vec<HistoryEntry> = store
-        .get(STORE_KEY)
-        .and_then(|v| serde_json::from_value(v).ok())
-        .unwrap_or_default();
-
-    entries.retain(|e| e.id != id);
-    store.set(STORE_KEY, serde_json::to_value(&entries).unwrap());
+    if let Err(e) = file_storage::delete_recording(id) {
+        eprintln!("[audioshift] Failed to delete recording {id}: {e}");
+    }
+    let _ = app.emit("history-updated", ());
 }
 
 pub fn clear_entries(app: &AppHandle) {
-    let store = match app.store(STORE_FILE) {
-        Ok(s) => s,
-        Err(_) => return,
-    };
-
-    store.set(STORE_KEY, serde_json::to_value::<Vec<HistoryEntry>>(vec![]).unwrap());
+    if let Err(e) = file_storage::clear_recordings() {
+        eprintln!("[audioshift] Failed to clear recordings: {e}");
+    }
+    let _ = app.emit("history-updated", ());
 }

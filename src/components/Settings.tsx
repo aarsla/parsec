@@ -56,6 +56,7 @@ export default function Settings() {
   const [transcriptionLanguage, setTranscriptionLanguage] = useState("auto");
   const [translateToEnglish, setTranslateToEnglish] = useState(false);
   const [monitorLevel, setMonitorLevel] = useState(0);
+  const [saveHistory, setSaveHistory] = useState(true);
   const [buildVariant, setBuildVariant] = useState<"direct" | "mas">("direct");
   const monitorSmoothed = useRef(0);
   const monitorRaf = useRef(0);
@@ -304,6 +305,11 @@ export default function Settings() {
       const savedTranslate = await store.get<boolean>("translateToEnglish");
       if (savedTranslate !== null && savedTranslate !== undefined) setTranslateToEnglish(savedTranslate);
 
+      const savedSaveHistory = await store.get<boolean>("saveHistory");
+      if (savedSaveHistory !== null && savedSaveHistory !== undefined) {
+        setSaveHistory(savedSaveHistory);
+      }
+
       const savedAutoUpdate = await store.get<boolean>("autoUpdate");
       if (savedAutoUpdate !== null && savedAutoUpdate !== undefined) {
         setAutoUpdate(savedAutoUpdate);
@@ -503,6 +509,16 @@ export default function Settings() {
     }
   };
 
+  const handleSaveHistoryChange = async (enabled: boolean) => {
+    setSaveHistory(enabled);
+    try {
+      const store = await load("settings.json");
+      await store.set("saveHistory", enabled);
+    } catch (e) {
+      console.error("Failed to save history setting:", e);
+    }
+  };
+
   const handleAutoUpdateChange = async (enabled: boolean) => {
     setAutoUpdate(enabled);
     try {
@@ -542,7 +558,7 @@ export default function Settings() {
     { id: "recording", label: "Recording", icon: <Mic size={16} /> },
     { id: "model", label: "Transcription", icon: <Box size={16} /> },
     { id: "output", label: "Output", icon: <ClipboardPaste size={16} /> },
-    { id: "history", label: "History", icon: <Clock size={16} /> },
+    ...(saveHistory ? [{ id: "history" as Section, label: "History", icon: <Clock size={16} /> }] : []),
     { id: "appearance", label: "Appearance", icon: <Palette size={16} /> },
     ...(isMac ? [{ id: "permissions" as Section, label: "Permissions", icon: <Shield size={16} /> }] : []),
     { id: "about", label: "About", icon: <Info size={16} /> },
@@ -558,10 +574,12 @@ export default function Settings() {
             autostart={autostart}
             showInDock={showInDock}
             startSound={startSound}
+            saveHistory={saveHistory}
             isMas={isMas}
             onAutostartChange={handleAutostartChange}
             onDockChange={handleDockChange}
             onStartSoundChange={handleStartSoundChange}
+            onSaveHistoryChange={handleSaveHistoryChange}
           />
         );
       case "appearance":

@@ -303,7 +303,6 @@ dependencies = [
  "tauri-plugin-store",
  "tauri-plugin-updater",
  "tokio",
- "uuid",
  "whisper-rs",
  "windows 0.59.0",
 ]

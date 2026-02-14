@@ -1,4 +1,4 @@
-import { Settings as SettingsIcon, Mic } from "lucide-react";
+import { Settings as SettingsIcon, Mic, Clock } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
@@ -8,15 +8,17 @@ interface Props {
   autostart: boolean;
   showInDock: boolean;
   startSound: StartSound;
+  saveHistory: boolean;
   isMas?: boolean;
   onAutostartChange: (enabled: boolean) => void;
   onDockChange: (visible: boolean) => void;
   onStartSoundChange: (sound: StartSound) => void;
+  onSaveHistoryChange: (enabled: boolean) => void;
 }
 
 export default function GeneralPage({
-  autostart, showInDock, startSound, isMas: _isMas,
-  onAutostartChange, onDockChange, onStartSoundChange,
+  autostart, showInDock, startSound, saveHistory, isMas: _isMas,
+  onAutostartChange, onDockChange, onStartSoundChange, onSaveHistoryChange,
 }: Props) {
   const isMac = navigator.userAgent.includes("Mac");
 
@@ -63,6 +65,15 @@ export default function GeneralPage({
               ))}
             </SelectContent>
           </Select>
+        </SettingRow>
+      </SectionCard>
+
+      <SectionCard title="History" icon={<Clock size={14} />}>
+        <SettingRow
+          label="Save History"
+          description="Save transcriptions and audio recordings to disk"
+        >
+          <Switch checked={saveHistory} onCheckedChange={onSaveHistoryChange} />
         </SettingRow>
       </SectionCard>
     </div>
