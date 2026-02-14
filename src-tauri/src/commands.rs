@@ -343,13 +343,16 @@ pub async fn download_model(app: tauri::AppHandle, model_id: String) -> Result<(
     transcriber::ensure_model(&app, &model_id).await.map_err(|e| e.to_string())?;
 
     // Preload into memory so first transcription (e.g. onboarding test) is instant
+    let handle = app.clone();
     let mid = model_id.clone();
+    let _ = app.emit("model-preload-start", &model_id);
     tauri::async_runtime::spawn(async move {
         tokio::task::spawn_blocking(move || {
             if let Err(e) = transcriber::preload_model(&mid) {
                 eprintln!("[audioshift] Model preload after download failed: {}", e);
             }
         }).await.ok();
+        let _ = handle.emit("model-preload-done", ());
     });
 
     Ok(())
@@ -394,13 +397,16 @@ pub fn set_live_model(app: tauri::AppHandle, model_id: String) -> Result<(), Str
     let _ = app.emit("live-model-changed", &model_id);
 
     // Preload in background so first transcription is instant
+    let handle = app.clone();
     let mid = model_id.clone();
+    let _ = app.emit("model-preload-start", &model_id);
     tauri::async_runtime::spawn(async move {
         tokio::task::spawn_blocking(move || {
             if let Err(e) = transcriber::preload_model(&mid) {
                 eprintln!("[audioshift] Model preload failed: {}", e);
             }
         }).await.ok();
+        let _ = handle.emit("model-preload-done", ());
     });
 
     Ok(())

@@ -110,6 +110,7 @@ const LANGUAGES = [
 interface Props {
   models: ModelStatusEntry[];
   liveModel: string;
+  modelPreloading: boolean;
   downloadProgress: DownloadProgress | null;
   downloadingModelId: string | null;
   transcriptionLanguage: string;
@@ -308,11 +309,13 @@ function ModelSelect({
   onChange,
   models,
   label,
+  description,
 }: {
   value: string;
   onChange: (id: string) => void;
   models: ModelStatusEntry[];
   label: string;
+  description: React.ReactNode;
 }) {
   const readyModels = models.filter((m) => m.ready);
   const options = readyModels.length > 0
@@ -320,7 +323,7 @@ function ModelSelect({
     : [{ value: "", label: "No models downloaded" }];
 
   return (
-    <SettingRow label={label} description="Only downloaded models are available">
+    <SettingRow label={label} description={description}>
       <CustomSelect value={value} onChange={onChange} options={options} />
     </SettingRow>
   );
@@ -329,6 +332,7 @@ function ModelSelect({
 export default function ModelPage({
   models,
   liveModel,
+  modelPreloading,
   downloadProgress,
   downloadingModelId,
   transcriptionLanguage,
@@ -352,6 +356,16 @@ export default function ModelPage({
           onChange={onLiveModelChange}
           models={models}
           label="Live Recording"
+          description={
+            modelPreloading ? (
+              <span className="flex items-center gap-1.5">
+                <Loader2 size={11} className="animate-spin" />
+                Loading model into memory…
+              </span>
+            ) : (
+              "Only downloaded models are available"
+            )
+          }
         />
       </SectionCard>
 

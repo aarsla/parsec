@@ -175,7 +175,7 @@ export function SettingRow({
   children,
 }: {
   label: string;
-  description?: string;
+  description?: React.ReactNode;
   note?: string;
   children: React.ReactNode;
 }) {

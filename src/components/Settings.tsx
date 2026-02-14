@@ -53,6 +53,7 @@ export default function Settings() {
   const [liveModel, setLiveModel] = useState("parakeet-tdt-0.6b-v3");
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
   const [downloadingModelId, setDownloadingModelId] = useState<string | null>(null);
+  const [modelPreloading, setModelPreloading] = useState(false);
   const [transcriptionLanguage, setTranscriptionLanguage] = useState("auto");
   const [translateToEnglish, setTranslateToEnglish] = useState(false);
   const [monitorLevel, setMonitorLevel] = useState(0);
@@ -139,6 +140,12 @@ export default function Settings() {
       setLiveModel(event.payload);
     });
     return () => { unlisten.then((fn) => fn()); };
+  }, []);
+
+  useEffect(() => {
+    const u1 = listen("model-preload-start", () => setModelPreloading(true));
+    const u2 = listen("model-preload-done", () => setModelPreloading(false));
+    return () => { u1.then((fn) => fn()); u2.then((fn) => fn()); };
   }, []);
 
   useEffect(() => {
@@ -533,12 +540,12 @@ export default function Settings() {
 
   const navItems: { id: Section; label: string; icon: React.ReactNode }[] = [
     { id: "general", label: "General", icon: <SettingsIcon size={16} /> },
-    { id: "appearance", label: "Appearance", icon: <Palette size={16} /> },
-    ...(isMac ? [{ id: "permissions" as Section, label: "Permissions", icon: <Shield size={16} /> }] : []),
     { id: "recording", label: "Recording", icon: <Mic size={16} /> },
+    { id: "model", label: "Transcription", icon: <Box size={16} /> },
     { id: "output", label: "Output", icon: <ClipboardPaste size={16} /> },
     { id: "history", label: "History", icon: <Clock size={16} /> },
-    { id: "model", label: "Transcription", icon: <Box size={16} /> },
+    { id: "appearance", label: "Appearance", icon: <Palette size={16} /> },
+    ...(isMac ? [{ id: "permissions" as Section, label: "Permissions", icon: <Shield size={16} /> }] : []),
     ...(!isMas ? [{ id: "updates" as Section, label: "Updates", icon: <Download size={16} /> }] : []),
     { id: "about", label: "About", icon: <Info size={16} /> },
   ];
@@ -606,6 +613,7 @@ export default function Settings() {
           <ModelPage
             models={models}
             liveModel={liveModel}
+            modelPreloading={modelPreloading}
             downloadProgress={downloadProgress}
             downloadingModelId={downloadingModelId}
             transcriptionLanguage={transcriptionLanguage}
