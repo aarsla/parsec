@@ -661,7 +661,9 @@ export default function Settings() {
         <nav className="flex-1 px-3 space-y-0.5">
           {navItems.map((item) => (
             <React.Fragment key={item.id}>
-              {item.id === "about" && <div className="!my-2 mx-1 h-px bg-border" />}
+              {((isMac && item.id === "permissions") || (!isMac && item.id === "about")) && (
+                <div className="!my-2 mx-1 h-px bg-border" />
+              )}
             <NavItem
               icon={item.icon}
               label={item.label}

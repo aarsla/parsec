@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Box, Download, Loader2, Trash2, ChevronDown, Languages, Search } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import { SectionCard, SettingRow, formatBytes, type ModelStatusEntry, type DownloadProgress } from "./shared";
 
 const LANGUAGES = [
@@ -381,6 +382,7 @@ export default function ModelPage({
             />
           </SettingRow>
           {showTranslate && (
+            <><Separator />
             <SettingRow
               label="Translate to English"
               description="Output English text regardless of spoken language"
@@ -389,7 +391,7 @@ export default function ModelPage({
                 checked={translateToEnglish}
                 onCheckedChange={onTranslateChange}
               />
-            </SettingRow>
+            </SettingRow></>
           )}
         </SectionCard>
       )}
