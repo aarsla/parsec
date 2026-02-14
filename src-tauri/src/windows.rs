@@ -17,16 +17,28 @@ pub fn create_overlay_window(app: &tauri::AppHandle) -> tauri::Result<()> {
         .focused(false)
         .skip_taskbar(true);
 
-    // macOS (non-MAS): true per-pixel transparency
-    #[cfg(all(not(feature = "mas"), not(target_os = "windows")))]
+    // Non-MAS: transparent window so CSS border-radius shows through
+    #[cfg(not(feature = "mas"))]
     let builder = builder.transparent(true).background_color(Color(0, 0, 0, 0));
 
-    // Windows: opaque background (WebView2 transparent bg unreliable)
-    // CSS will override with var(--background) to match theme; this prevents flash
-    #[cfg(all(not(feature = "mas"), target_os = "windows"))]
-    let builder = builder.background_color(Color(32, 32, 32, 255));
-
     let win = builder.build()?;
+
+    // Windows 11: apply rounded corners via DWM
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE};
+        let hwnd = HWND(win.hwnd().unwrap().0);
+        let preference: i32 = 2; // DWMWCP_ROUND
+        unsafe {
+            let _ = DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_WINDOW_CORNER_PREFERENCE,
+                &preference as *const _ as *const _,
+                std::mem::size_of::<i32>() as u32,
+            );
+        }
+    }
 
     // MAS: apply CALayer corner radius + clear window bg (all public APIs)
     // WKWebView still draws opaque content, but the CALayer mask clips it to rounded rect,

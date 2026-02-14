@@ -201,30 +201,18 @@ export default function RecordingOverlay({ status }: Props) {
   useEffect(() => {
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
-    const isWindows = navigator.userAgent.includes("Windows");
     invoke<string>("get_build_variant").then((variant) => {
       if (variant === "mas") {
         // MAS: CALayer clips corners, use black behind the mask
         document.documentElement.style.background = "#000";
         document.body.style.background = "#000";
-      } else if (isWindows) {
-        // Windows: WebView2 transparent bg unreliable — match theme bg so corners blend
-        const bg = getComputedStyle(document.documentElement).getPropertyValue("--background").trim();
-        document.documentElement.style.background = bg || "#000";
-        document.body.style.background = bg || "#000";
       } else {
         document.documentElement.style.background = "transparent";
         document.body.style.background = "transparent";
       }
     }).catch(() => {
-      if (isWindows) {
-        const bg = getComputedStyle(document.documentElement).getPropertyValue("--background").trim();
-        document.documentElement.style.background = bg || "#000";
-        document.body.style.background = bg || "#000";
-      } else {
-        document.documentElement.style.background = "transparent";
-        document.body.style.background = "transparent";
-      }
+      document.documentElement.style.background = "transparent";
+      document.body.style.background = "transparent";
     });
   }, []);
 
