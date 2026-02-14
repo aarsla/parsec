@@ -275,7 +275,7 @@ export default function RecordingOverlay({ status }: Props) {
     );
   }
 
-  // Minimal: red dot + timer + hotkey hint, pill shape
+  // Minimal: red dot + timer + mini waveform + hotkey hint, pill shape
   if (theme === "minimal") {
     return (
       <div
@@ -286,7 +286,10 @@ export default function RecordingOverlay({ status }: Props) {
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
           <span className="text-foreground font-mono text-xs">{formatTime(seconds)}</span>
         </div>
-        <span className="text-muted-foreground text-[10px] shrink-0 ml-auto">
+        <div className="flex-1 min-w-0 h-5">
+          <Waveform amplitudes={amplitudes} barColor={waveformColor} />
+        </div>
+        <span className="text-muted-foreground text-[10px] shrink-0">
           {shortcutToDisplay(hotkey)} to finish · Esc to cancel
         </span>
       </div>

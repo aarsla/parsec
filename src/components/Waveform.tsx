@@ -53,7 +53,7 @@ export default function Waveform({ amplitudes, barColor = "59, 130, 246" }: Prop
   return (
     <canvas
       ref={canvasRef}
-      className="w-full h-12"
+      className="w-full h-full"
     />
   );
 }
