@@ -42,7 +42,10 @@ interface ModelInfo {
   path: string;
 }
 
-const STEPS = ["Welcome", "Model", "Microphone", "Accessibility", "Ready"] as const;
+const isMac = navigator.userAgent.includes("Mac");
+const STEPS = isMac
+  ? (["Welcome", "Model", "Microphone", "Accessibility", "Ready"] as const)
+  : (["Welcome", "Model", "Ready"] as const);
 
 function formatMB(bytes: number): string {
   return Math.round(bytes / (1024 * 1024)).toString();
@@ -70,8 +73,7 @@ export default function Onboarding() {
   const [selectedModelId, setSelectedModelId] = useState("parakeet-tdt-0.6b-v3");
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-  const isMac = navigator.userAgent.includes("Mac");
-  const [hotkey, setHotkey] = useState(isMac ? "Alt+Space" : "Ctrl+Space");
+  const [hotkey, setHotkey] = useState(isMac ? "Alt+Space" : "Ctrl+Shift+Space");
   const [testState, setTestState] = useState<"idle" | "recording" | "transcribing">("idle");
   const [testResult, setTestResult] = useState("");
   const downloadStarted = useRef(false);
@@ -163,9 +165,11 @@ export default function Onboarding() {
     startDownload();
   };
 
+  const lastStep = STEPS.length - 1;
+
   // Listen for status changes and transcription result on the Ready step
   useEffect(() => {
-    if (step !== 4) return;
+    if (step !== lastStep) return;
     const unlistenStatus = listen<string>("status-changed", (event) => {
       const s = event.payload;
       if (s === "recording") setTestState("recording");
@@ -203,7 +207,7 @@ export default function Onboarding() {
       <div className="flex-1 flex flex-col px-10 pb-6 min-h-0">
         {/* Step content */}
         <div className="flex-1 flex flex-col justify-center min-h-0">
-          {step === 0 && (
+          {STEPS[step] === "Welcome" && (
             <div className="space-y-4 text-center">
               <div className="flex justify-center">
                 <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
@@ -222,7 +226,7 @@ export default function Onboarding() {
             </div>
           )}
 
-          {step === 1 && (
+          {STEPS[step] === "Model" && (
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -320,7 +324,7 @@ export default function Onboarding() {
             </div>
           )}
 
-          {step === 2 && (
+          {STEPS[step] === "Microphone" && (
             <div className="space-y-5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -362,7 +366,7 @@ export default function Onboarding() {
             </div>
           )}
 
-          {step === 3 && (
+          {STEPS[step] === "Accessibility" && (
             <div className="space-y-5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -407,7 +411,7 @@ export default function Onboarding() {
             </div>
           )}
 
-          {step === 4 && (
+          {STEPS[step] === "Ready" && (
             <div className="space-y-4 text-center">
               <div>
                 <h2 className="text-2xl font-semibold tracking-tight">You're all set!</h2>
@@ -448,8 +452,8 @@ export default function Onboarding() {
 
               <div className="space-y-1.5 text-left max-w-xs mx-auto">
                 <StatusRow label="Speech Model" ok={status.model_ready} />
-                <StatusRow label="Microphone" ok={status.mic_granted} />
-                <StatusRow label="Accessibility" ok={status.accessibility_granted} />
+                {isMac && <StatusRow label="Microphone" ok={status.mic_granted} />}
+                {isMac && <StatusRow label="Accessibility" ok={status.accessibility_granted} />}
               </div>
 
               <div className="pt-1">
@@ -468,7 +472,7 @@ export default function Onboarding() {
         {/* Navigation */}
         <div className="shrink-0 pt-4">
           {/* Step dots (hidden on last screen) */}
-          {step < 4 && (
+          {step < lastStep && (
             <div className="flex justify-center gap-1.5 mb-4">
               {STEPS.map((_, i) => (
                 <div
@@ -493,7 +497,7 @@ export default function Onboarding() {
                 <ChevronRight size={14} />
               </button>
             </div>
-          ) : step < 4 ? (
+          ) : step < lastStep ? (
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setStep(step - 1)}

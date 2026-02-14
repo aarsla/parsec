@@ -7,7 +7,7 @@ use crate::state::{AppState, Status};
 const DEFAULT_HOTKEY: &str = "Alt+Space";
 
 #[cfg(not(target_os = "macos"))]
-const DEFAULT_HOTKEY: &str = "Ctrl+Space";
+const DEFAULT_HOTKEY: &str = "Ctrl+Shift+Space";
 
 fn shortcut_handler(app: &AppHandle, _shortcut: &Shortcut, event: tauri_plugin_global_shortcut::ShortcutEvent) {
     if event.state != ShortcutState::Pressed {

@@ -41,6 +41,18 @@ pub fn start(app: &AppHandle) {
                 }
             }
 
+            #[cfg(target_os = "windows")]
+            {
+                use windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
+                const VK_ESCAPE: i32 = 0x1B;
+                let state = unsafe { GetAsyncKeyState(VK_ESCAPE) };
+                // High bit set = key is currently pressed
+                if state < 0 {
+                    let _ = app.emit("recording-toggle", "cancel");
+                    break;
+                }
+            }
+
             thread::sleep(Duration::from_millis(50));
         }
         MONITOR_ACTIVE.store(false, Ordering::Relaxed);

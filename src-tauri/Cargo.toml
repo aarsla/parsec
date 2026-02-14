@@ -19,7 +19,7 @@ tauri-build = { version = "2", features = [] }
 cc = "1"
 
 [dependencies]
-tauri = { version = "2", features = [ "tray-icon", "image-png"] }
+tauri = { version = "2", features = [ "tray-icon", "image-png", "macos-private-api"] }
 tauri-plugin-opener = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-store = "2"
@@ -48,10 +48,13 @@ objc = "0.2.7"
 [target.'cfg(target_os = "linux")'.dependencies]
 parakeet-rs = "0.3"
 whisper-rs = "0.15"
+arboard = "3"
 
 [target.'cfg(windows)'.dependencies]
 parakeet-rs = { version = "0.3", features = ["directml"] }
 whisper-rs = "0.15"
+windows = { version = "0.59", features = ["Win32_UI_Input_KeyboardAndMouse"] }
+arboard = "3"
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-autostart = "2"

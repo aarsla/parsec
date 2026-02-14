@@ -529,11 +529,12 @@ export default function Settings() {
   // --- Navigation ---
 
   const isMas = buildVariant === "mas";
+  const isMac = navigator.userAgent.includes("Mac");
 
   const navItems: { id: Section; label: string; icon: React.ReactNode }[] = [
     { id: "general", label: "General", icon: <SettingsIcon size={16} /> },
     { id: "appearance", label: "Appearance", icon: <Palette size={16} /> },
-    { id: "permissions", label: "Permissions", icon: <Shield size={16} /> },
+    ...(isMac ? [{ id: "permissions" as Section, label: "Permissions", icon: <Shield size={16} /> }] : []),
     { id: "recording", label: "Recording", icon: <Mic size={16} /> },
     { id: "output", label: "Output", icon: <ClipboardPaste size={16} /> },
     { id: "history", label: "History", icon: <Clock size={16} /> },

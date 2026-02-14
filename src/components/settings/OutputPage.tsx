@@ -16,8 +16,8 @@ export default function OutputPage({ pasteMode, onPasteModeChange }: Props) {
           description="Automatically paste transcribed text into the active app"
           note={
             pasteMode === "auto"
-              ? "Copies text and simulates \u2318V"
-              : "You paste manually with \u2318V"
+              ? `Copies text and simulates ${navigator.userAgent.includes("Mac") ? "\u2318V" : "Ctrl+V"}`
+              : `You paste manually with ${navigator.userAgent.includes("Mac") ? "\u2318V" : "Ctrl+V"}`
           }
         >
           <Switch

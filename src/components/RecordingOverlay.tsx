@@ -155,7 +155,7 @@ export default function RecordingOverlay({ status }: Props) {
   );
   const [accentKey, setAccentKey] = useState(() => localStorage.getItem("accentColor") || "blue");
   const isMac = navigator.userAgent.includes("Mac");
-  const [hotkey, setHotkey] = useState(isMac ? "Alt+Space" : "Ctrl+Space");
+  const [hotkey, setHotkey] = useState(isMac ? "Alt+Space" : "Ctrl+Shift+Space");
   // Sync settings cross-window via tauri store onKeyChange
   useEffect(() => {
     let cleanups: (() => void)[] = [];
