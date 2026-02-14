@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { load } from "@tauri-apps/plugin-store";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Info, Settings as SettingsIcon, ExternalLink, Download, RefreshCw, Check, Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
@@ -233,8 +234,8 @@ export default function AboutPage({
             onClick={async () => {
               const store = await load("settings.json");
               await store.delete("onboardingCompleted");
-              await store.delete("liveModel");
-              invoke("restart_app");
+              await invoke("show_onboarding");
+              getCurrentWebviewWindow().close();
             }}
             className="px-2.5 py-1 text-xs rounded-md bg-secondary border border-border
                        hover:bg-accent text-muted-foreground transition-colors"

@@ -17,8 +17,14 @@ pub fn create_overlay_window(app: &tauri::AppHandle) -> tauri::Result<()> {
         .focused(false)
         .skip_taskbar(true);
 
-    #[cfg(not(feature = "mas"))]
-    let builder = builder.transparent(true);
+    // macOS (non-MAS): true per-pixel transparency
+    #[cfg(all(not(feature = "mas"), not(target_os = "windows")))]
+    let builder = builder.transparent(true).background_color(Color(0, 0, 0, 0));
+
+    // Windows: opaque background (WebView2 transparent bg unreliable)
+    // CSS will override with var(--background) to match theme; this prevents flash
+    #[cfg(all(not(feature = "mas"), target_os = "windows"))]
+    let builder = builder.background_color(Color(32, 32, 32, 255));
 
     let win = builder.build()?;
 
@@ -104,7 +110,7 @@ pub fn create_onboarding_window(app: &tauri::AppHandle) -> tauri::Result<()> {
 
     let win = WebviewWindowBuilder::new(app, "onboarding", WebviewUrl::App("/onboarding".into()))
         .title("AudioShift Setup")
-        .inner_size(520.0, 440.0)
+        .inner_size(520.0, 480.0)
         .resizable(false)
         .center()
         .visible(true)

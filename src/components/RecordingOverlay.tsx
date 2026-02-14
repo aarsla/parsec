@@ -65,6 +65,10 @@ const THEME_CONFIGS: Record<OverlayTheme, ThemeConfig> = {
   },
 };
 
+// Windows: shadow makes rounded corners visible against opaque window bg
+// Kept as separate class so Tailwind scanner detects it: shadow-2xl
+const WIN_SHADOW = navigator.userAgent.includes("Windows") ? "shadow-2xl" : "";
+
 interface WorkArea {
   x: number;
   y: number;
@@ -156,7 +160,7 @@ export default function RecordingOverlay({ status }: Props) {
   const [theme, setTheme] = useState<OverlayTheme>(
     () => (localStorage.getItem("overlayTheme") || "default") as OverlayTheme
   );
-  const [accentKey, setAccentKey] = useState(() => localStorage.getItem("accentColor") || "blue");
+  const [accentKey, setAccentKey] = useState(() => localStorage.getItem("accentColor") || "orange");
   const isMac = navigator.userAgent.includes("Mac");
   const [hotkey, setHotkey] = useState(isMac ? "Alt+Space" : "Ctrl+Shift+Space");
   // Sync settings cross-window via tauri store onKeyChange
@@ -164,6 +168,12 @@ export default function RecordingOverlay({ status }: Props) {
     let cleanups: (() => void)[] = [];
     invoke<string>("get_current_hotkey").then(setHotkey).catch(() => {});
     load("settings.json").then(async (store) => {
+      // Read initial values (onKeyChange only fires on subsequent changes)
+      const savedAccent = await store.get<string>("accentColor");
+      if (savedAccent) setAccentKey(savedAccent);
+      const savedTheme = await store.get<string>("overlayTheme");
+      if (savedTheme) setTheme(savedTheme as OverlayTheme);
+
       const u1 = await store.onKeyChange<string>("overlayTheme", (v) => {
         if (v) setTheme(v as OverlayTheme);
       });
@@ -191,17 +201,30 @@ export default function RecordingOverlay({ status }: Props) {
   useEffect(() => {
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
+    const isWindows = navigator.userAgent.includes("Windows");
     invoke<string>("get_build_variant").then((variant) => {
       if (variant === "mas") {
+        // MAS: CALayer clips corners, use black behind the mask
         document.documentElement.style.background = "#000";
         document.body.style.background = "#000";
+      } else if (isWindows) {
+        // Windows: WebView2 transparent bg unreliable — match theme bg so corners blend
+        const bg = getComputedStyle(document.documentElement).getPropertyValue("--background").trim();
+        document.documentElement.style.background = bg || "#000";
+        document.body.style.background = bg || "#000";
       } else {
         document.documentElement.style.background = "transparent";
         document.body.style.background = "transparent";
       }
     }).catch(() => {
-      document.documentElement.style.background = "transparent";
-      document.body.style.background = "transparent";
+      if (isWindows) {
+        const bg = getComputedStyle(document.documentElement).getPropertyValue("--background").trim();
+        document.documentElement.style.background = bg || "#000";
+        document.body.style.background = bg || "#000";
+      } else {
+        document.documentElement.style.background = "transparent";
+        document.body.style.background = "transparent";
+      }
     });
   }, []);
 
@@ -250,7 +273,7 @@ export default function RecordingOverlay({ status }: Props) {
     const isSmall = theme === "compact" || theme === "minimal";
     return (
       <div
-        className={`flex items-center justify-center h-full px-4 select-none ${config.containerClass}`}
+        className={`flex items-center justify-center h-full px-4 select-none ${config.containerClass} ${WIN_SHADOW}`}
 
         data-tauri-drag-region
       >
@@ -266,7 +289,7 @@ export default function RecordingOverlay({ status }: Props) {
   if (theme === "compact") {
     return (
       <div
-        className={`flex items-center justify-center gap-2 h-full px-4 select-none ${config.containerClass}`}
+        className={`flex items-center justify-center gap-2 h-full px-4 select-none ${config.containerClass} ${WIN_SHADOW}`}
         data-tauri-drag-region
       >
         <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -279,14 +302,14 @@ export default function RecordingOverlay({ status }: Props) {
   if (theme === "minimal") {
     return (
       <div
-        className={`flex items-center h-full px-4 gap-3 select-none ${config.containerClass}`}
+        className={`flex items-center h-full px-4 gap-3 select-none ${config.containerClass} ${WIN_SHADOW}`}
         data-tauri-drag-region
       >
         <div className="flex items-center gap-2 shrink-0">
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
           <span className="text-foreground font-mono text-xs">{formatTime(seconds)}</span>
         </div>
-        <div className="flex-1 min-w-0 h-5">
+        <div className="flex-1 min-w-0 h-5 flex items-center">
           <Waveform amplitudes={amplitudes} barColor={waveformColor} />
         </div>
         <span className="text-muted-foreground text-[10px] shrink-0">
@@ -299,10 +322,10 @@ export default function RecordingOverlay({ status }: Props) {
   // Default / Glass: full layout with waveform + timer + hotkey hints
   return (
     <div
-      className={`flex flex-col h-full px-4 py-3 select-none ${config.containerClass}`}
+      className={`flex flex-col h-full px-4 py-3 select-none ${config.containerClass} ${WIN_SHADOW}`}
       data-tauri-drag-region
     >
-      <div className="flex-1 flex items-center">
+      <div className="flex-1 min-h-0 flex items-center overflow-hidden">
         <Waveform amplitudes={amplitudes} barColor={waveformColor} />
       </div>
       <div className="flex items-center justify-between text-xs text-muted-foreground">

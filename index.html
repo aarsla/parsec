@@ -24,8 +24,10 @@
         var c = dark ? p.dark : p.light;
         var r = document.documentElement;
         ['--primary','--ring','--sidebar-primary','--sidebar-ring'].forEach(function(v){ r.style.setProperty(v, c); });
-        // Set background immediately to prevent flash
-        r.style.backgroundColor = dark ? 'oklch(0.145 0 0)' : 'oklch(1 0 0)';
+        // Set background immediately to prevent flash (skip overlay — needs transparency)
+        if (window.location.pathname !== '/overlay') {
+          r.style.backgroundColor = dark ? 'oklch(0.145 0 0)' : 'oklch(1 0 0)';
+        }
       })();
     </script>
   </head>

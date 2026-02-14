@@ -459,22 +459,12 @@ export default function Onboarding() {
                 {isMac && <StatusRow label="Microphone" ok={status.mic_granted} />}
                 {isMac && <StatusRow label="Accessibility" ok={status.accessibility_granted} />}
               </div>
-
-              <div className="pt-1">
-                <button
-                  onClick={closeWindow}
-                  className="inline-flex items-center gap-1.5 px-6 py-2.5 text-sm rounded-lg
-                             bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
-                  Start Using AudioShift
-                </button>
-              </div>
             </div>
           )}
         </div>
 
         {/* Navigation */}
-        <div className="shrink-0 pt-4">
+        <div className="shrink-0 pt-4 border-t border-border">
           {/* Step dots (hidden on last screen) */}
           {step < lastStep && (
             <div className="flex justify-center gap-1.5 mb-4">
@@ -528,7 +518,17 @@ export default function Onboarding() {
                 <ChevronRight size={14} />
               </button>
             </div>
-          ) : null}
+          ) : (
+            <div className="flex justify-center">
+              <button
+                onClick={closeWindow}
+                className="inline-flex items-center gap-1.5 px-6 py-2.5 text-sm rounded-lg
+                           bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                Start Using AudioShift
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
