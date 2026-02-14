@@ -293,9 +293,40 @@ pub fn get_work_area_at_cursor() -> Option<WorkArea> {
     {
         macos_work_area_at_cursor()
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        windows_work_area_at_cursor()
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         None
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn windows_work_area_at_cursor() -> Option<WorkArea> {
+    use windows::Win32::Graphics::Gdi::{MonitorFromPoint, GetMonitorInfoW, MONITORINFO, MONITOR_DEFAULTTONEAREST};
+    use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
+    use windows::Win32::Foundation::POINT;
+
+    unsafe {
+        let mut cursor = POINT::default();
+        GetCursorPos(&mut cursor).ok()?;  // returns Result<()>
+
+        let hmonitor = MonitorFromPoint(cursor, MONITOR_DEFAULTTONEAREST);
+        let mut info = MONITORINFO {
+            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
+        GetMonitorInfoW(hmonitor, &mut info).ok().ok()?;  // returns BOOL
+
+        let rc = info.rcWork;
+        Some(WorkArea {
+            x: rc.left as f64,
+            y: rc.top as f64,
+            width: (rc.right - rc.left) as f64,
+            height: (rc.bottom - rc.top) as f64,
+        })
     }
 }
 

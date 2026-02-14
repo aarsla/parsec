@@ -52,7 +52,7 @@ arboard = "3"
 [target.'cfg(windows)'.dependencies]
 parakeet-rs = { version = "0.3", features = ["directml"] }
 whisper-rs = "0.15"
-windows = { version = "0.59", features = ["Win32_UI_Input_KeyboardAndMouse"] }
+windows = { version = "0.59", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging"] }
 arboard = "3"
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
