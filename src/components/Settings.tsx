@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -23,7 +23,6 @@ import PermissionsPage from "./settings/PermissionsPage";
 import RecordingPage from "./settings/RecordingPage";
 import OutputPage from "./settings/OutputPage";
 import ModelPage from "./settings/ModelPage";
-import UpdatesPage from "./settings/UpdatesPage";
 import AboutPage from "./settings/AboutPage";
 export default function Settings() {
   const [activeSection, setActiveSection] = useState<Section>("general");
@@ -546,7 +545,6 @@ export default function Settings() {
     { id: "history", label: "History", icon: <Clock size={16} /> },
     { id: "appearance", label: "Appearance", icon: <Palette size={16} /> },
     ...(isMac ? [{ id: "permissions" as Section, label: "Permissions", icon: <Shield size={16} /> }] : []),
-    ...(!isMas ? [{ id: "updates" as Section, label: "Updates", icon: <Download size={16} /> }] : []),
     { id: "about", label: "About", icon: <Info size={16} /> },
   ];
 
@@ -625,9 +623,12 @@ export default function Settings() {
             onTranslateChange={handleTranslateChange}
           />
         );
-      case "updates":
+      case "about":
         return (
-          <UpdatesPage
+          <AboutPage
+            liveModelName={models.find((m) => m.id === liveModel)?.name ?? liveModel}
+            liveModelSize={models.find((m) => m.id === liveModel)?.sizeLabel ?? ""}
+            isMas={isMas}
             autoUpdate={autoUpdate}
             lastChecked={lastChecked}
             updateStatus={updateStatus}
@@ -642,8 +643,6 @@ export default function Settings() {
             onRestart={handleRestart}
           />
         );
-      case "about":
-        return <AboutPage liveModelName={models.find((m) => m.id === liveModel)?.name ?? liveModel} liveModelSize={models.find((m) => m.id === liveModel)?.sizeLabel ?? ""} />;
       default:
         return null;
     }
@@ -661,13 +660,15 @@ export default function Settings() {
         </div>
         <nav className="flex-1 px-3 space-y-0.5">
           {navItems.map((item) => (
+            <React.Fragment key={item.id}>
+              {item.id === "about" && <div className="!my-2 mx-1 h-px bg-border" />}
             <NavItem
-              key={item.id}
               icon={item.icon}
               label={item.label}
               active={activeSection === item.id}
               onClick={() => { setActiveSection(item.id); setTestingMic(false); }}
             />
+            </React.Fragment>
           ))}
         </nav>
         {downloadProgress && downloadingModelId && (

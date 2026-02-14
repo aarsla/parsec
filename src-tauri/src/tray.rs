@@ -196,10 +196,10 @@ pub fn build_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
             "updates" => {
                 // Store pending section so fresh windows pick it up on mount
                 if let Ok(store) = app.store("settings.json") {
-                    let _ = store.set("pendingSection", serde_json::json!("updates"));
+                    let _ = store.set("pendingSection", serde_json::json!("about"));
                 }
                 let _ = windows::create_settings_window(app);
-                app.emit("navigate-section", "updates").ok();
+                app.emit("navigate-section", "about").ok();
                 let handle = app.clone();
                 tauri::async_runtime::spawn(async move {
                     crate::updater::do_update_check(&handle, false).await;

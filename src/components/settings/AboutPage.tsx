@@ -1,11 +1,35 @@
 import { invoke } from "@tauri-apps/api/core";
 import { load } from "@tauri-apps/plugin-store";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Info, Settings as SettingsIcon, ExternalLink } from "lucide-react";
+import { Info, Settings as SettingsIcon, ExternalLink, Download, RefreshCw, Check, Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { SectionCard, SettingRow } from "./shared";
+import { Switch } from "@/components/ui/switch";
+import { SectionCard, SettingRow, formatBytes, type UpdateStatus } from "./shared";
 
-export default function AboutPage({ liveModelName, liveModelSize }: { liveModelName: string; liveModelSize: string }) {
+interface Props {
+  liveModelName: string;
+  liveModelSize: string;
+  isMas: boolean;
+  autoUpdate: boolean;
+  lastChecked: string;
+  updateStatus: UpdateStatus;
+  updateError: string;
+  updateVersion: string;
+  updateBody: string;
+  updateDownloaded: number;
+  updateTotal: number;
+  onAutoUpdateChange: (enabled: boolean) => void;
+  onCheckForUpdates: () => void;
+  onInstallUpdate: () => void;
+  onRestart: () => void;
+}
+
+export default function AboutPage({
+  liveModelName, liveModelSize, isMas,
+  autoUpdate, lastChecked, updateStatus, updateError,
+  updateVersion, updateBody, updateDownloaded, updateTotal,
+  onAutoUpdateChange, onCheckForUpdates, onInstallUpdate, onRestart,
+}: Props) {
   return (
     <div className="space-y-4">
       <div className="bg-card border border-border rounded-xl overflow-hidden px-4 py-4 flex items-center gap-5">
@@ -18,9 +42,6 @@ export default function AboutPage({ liveModelName, liveModelSize }: { liveModelN
             Stop typing.{" "}
             <span className="text-primary">Start speaking.</span>
           </h3>
-          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-            Runs entirely on your device. Nothing leaves your machine.
-          </p>
           <p className="text-[11px] text-muted-foreground/60 mt-1 font-mono">v1.0.1</p>
         </div>
         <div className="shrink-0 flex items-center pr-2">
@@ -53,7 +74,7 @@ export default function AboutPage({ liveModelName, liveModelSize }: { liveModelN
       <SectionCard title="About AudioShift" icon={<Info size={14} />}>
         <SettingRow label="Version" description="Current app version">
           <span className="text-sm text-muted-foreground font-mono">
-            1.0.0
+            v1.0.1
           </span>
         </SettingRow>
         <Separator />
@@ -86,6 +107,122 @@ export default function AboutPage({ liveModelName, liveModelSize }: { liveModelN
           </button>
         </SettingRow>
       </SectionCard>
+
+      {!isMas && (
+        <>
+          <SectionCard title="Updates" icon={<Download size={14} />}>
+            <SettingRow
+              label="Automatic Updates"
+              description="Check for updates automatically in the background"
+            >
+              <Switch checked={autoUpdate} onCheckedChange={onAutoUpdateChange} />
+            </SettingRow>
+            <Separator />
+            <div className="px-4 py-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onCheckForUpdates}
+                  disabled={updateStatus === "checking" || updateStatus === "downloading"}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md
+                             bg-primary text-primary-foreground hover:bg-primary/90
+                             transition-colors disabled:opacity-50"
+                >
+                  {updateStatus === "checking" ? (
+                    <RefreshCw size={12} className="animate-spin" />
+                  ) : (
+                    <RefreshCw size={12} />
+                  )}
+                  {updateStatus === "checking" ? "Checking..." : "Check for Updates"}
+                </button>
+              </div>
+              {updateStatus === "up-to-date" && (
+                <p className="text-xs text-muted-foreground">
+                  You're on the latest version.{lastChecked && ` Last checked: ${lastChecked}`}
+                </p>
+              )}
+              {updateStatus === "error" && updateError && (
+                <p className="text-xs text-destructive/80">
+                  {updateError}
+                </p>
+              )}
+              {updateStatus === "idle" && lastChecked && (
+                <p className="text-xs text-muted-foreground">
+                  Last checked: {lastChecked}
+                </p>
+              )}
+            </div>
+          </SectionCard>
+
+          {updateStatus === "available" && updateVersion && (
+            <SectionCard title="Update Available" icon={<Download size={14} />}>
+              <div className="px-4 py-3 space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    Version {updateVersion} is available
+                  </p>
+                  {updateBody && (
+                    <p className="text-xs text-muted-foreground mt-1 whitespace-pre-line">
+                      {updateBody}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={onInstallUpdate}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md
+                             bg-primary text-primary-foreground hover:bg-primary/90
+                             transition-colors"
+                >
+                  <Download size={12} />
+                  Install & Restart
+                </button>
+              </div>
+            </SectionCard>
+          )}
+
+          {updateStatus === "downloading" && (
+            <SectionCard title="Installing Update" icon={<Download size={14} />}>
+              <div className="px-4 py-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Loader2 size={14} className="animate-spin text-primary" />
+                  <span className="text-sm text-foreground">Downloading update...</span>
+                </div>
+                {updateTotal > 0 && (
+                  <>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-300"
+                        style={{ width: `${Math.round((updateDownloaded / updateTotal) * 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      {formatBytes(updateDownloaded)} / {formatBytes(updateTotal)}
+                    </p>
+                  </>
+                )}
+              </div>
+            </SectionCard>
+          )}
+
+          {updateStatus === "restart-pending" && (
+            <SectionCard title="Update Ready" icon={<Check size={14} />}>
+              <div className="px-4 py-3 space-y-3">
+                <p className="text-sm text-foreground">
+                  Update has been downloaded and installed. Restart to apply.
+                </p>
+                <button
+                  onClick={onRestart}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md
+                             bg-primary text-primary-foreground hover:bg-primary/90
+                             transition-colors"
+                >
+                  <RefreshCw size={12} />
+                  Restart Now
+                </button>
+              </div>
+            </SectionCard>
+          )}
+        </>
+      )}
 
       <SectionCard title="Setup" icon={<SettingsIcon size={14} />}>
         <SettingRow

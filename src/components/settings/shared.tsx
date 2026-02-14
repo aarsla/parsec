@@ -4,7 +4,7 @@ import { Check, Sun, Moon, Monitor } from "lucide-react";
 // --- Types ---
 
 export type PermissionStatus = "granted" | "denied" | "unknown" | "checking";
-export type Section = "general" | "appearance" | "permissions" | "recording" | "output" | "history" | "model" | "updates" | "about";
+export type Section = "general" | "appearance" | "permissions" | "recording" | "output" | "history" | "model" | "about";
 
 export type ThemeMode = "light" | "dark" | "system";
 export type AccentColor = "zinc" | "orange" | "teal" | "green" | "blue" | "purple" | "red";
