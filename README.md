@@ -4,7 +4,11 @@ Local voice-to-text transcription for your desktop. Press a shortcut, speak, and
 
 No accounts. No subscriptions. No cloud.
 
-<img src="assets/audioshift.png" alt="AudioShift" width="100%">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/audioshift-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="assets/audioshift-light.png">
+  <img src="assets/audioshift-light.png" alt="AudioShift" width="100%">
+</picture>
 
 **[Download](https://github.com/aarsla/audioshift/releases)** | **[Mac App Store](https://apps.apple.com/us/app/audioshift/id6759166457)** | **[Website](https://audioshift.io)**
 
