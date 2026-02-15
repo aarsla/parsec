@@ -57,7 +57,7 @@ export default function AboutPage({
       <SectionCard title="About AudioShift" icon={<Info size={14} />}>
         <SettingRow label="Version" description="Current app version">
           <span className="text-sm text-muted-foreground font-mono">
-            v1.0.8
+            v1.0.9
           </span>
         </SettingRow>
         <Separator />
