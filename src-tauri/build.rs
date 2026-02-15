@@ -45,7 +45,7 @@ fn main() {
         "core:window:allow-scale-factor",
     ];
 
-    #[cfg(not(feature = "mas"))]
+    #[cfg(not(target_os = "macos"))]
     {
         permissions.push("autostart:allow-enable");
         permissions.push("autostart:allow-disable");

@@ -1,5 +1,8 @@
-.PHONY: help dev clean-dev build run build-mas pkg run-mas check check-mas check-ts check-all release
+.PHONY: help dev clean-dev build run build-mas pkg run-mas check check-mas check-ts check-all release clean
 .DEFAULT_GOAL := help
+
+DIRECT_ID = io.audioshift.desktop
+MAS_ID = io.audioshift.app
 
 help:
 	@echo "Usage: make <command>"
@@ -9,6 +12,7 @@ help:
 	@echo "  clean-dev    Reset state + dev"
 	@echo "  build        Production build (direct)"
 	@echo "  run          Build + run (resets permissions)"
+	@echo "  clean        Uninstall + wipe all data + reset permissions"
 	@echo ""
 	@echo "Mac App Store:"
 	@echo "  build-mas    MAS build (aarch64)"
@@ -22,17 +26,17 @@ help:
 	@echo "  check-all    All checks"
 	@echo ""
 	@echo "Release:"
-	@echo "  release x.y.z   Bump version, amend commit, force push, tag"
+	@echo "  release x.y.z   Bump version, commit, push, tag"
 
 dev:
 	pnpm tauri dev
 
 clean-dev:
 	-pkill -f AudioShift
-	-tccutil reset Microphone io.audioshift.app
-	-tccutil reset Accessibility io.audioshift.app
-	-rm -f "$(HOME)/Library/Application Support/io.audioshift.app/settings.json"
-	-rm -f "$(HOME)/Library/Application Support/io.audioshift.app/history.json"
+	-tccutil reset Microphone $(DIRECT_ID)
+	-tccutil reset Accessibility $(DIRECT_ID)
+	-rm -f "$(HOME)/Library/Application Support/$(DIRECT_ID)/settings.json"
+	-rm -f "$(HOME)/Library/Application Support/$(DIRECT_ID)/history.json"
 	-rm -rf "$(HOME)/Documents/AudioShift"
 	pnpm tauri dev
 
@@ -42,10 +46,31 @@ build:
 run: build
 	-tccutil reset Microphone
 	-tccutil reset Accessibility
-	-rm -f "$(HOME)/Library/Application Support/io.audioshift.app/settings.json"
-	-rm -f "$(HOME)/Library/Application Support/io.audioshift.app/history.json"
+	-rm -f "$(HOME)/Library/Application Support/$(DIRECT_ID)/settings.json"
+	-rm -f "$(HOME)/Library/Application Support/$(DIRECT_ID)/history.json"
 	-rm -rf "$(HOME)/Documents/AudioShift"
 	open src-tauri/target/release/bundle/macos/AudioShift.app
+
+clean:
+	-osascript -e 'quit app "AudioShift"' 2>/dev/null; sleep 1
+	-rm -rf /Applications/AudioShift.app
+	-rm -rf "$(HOME)/Library/Application Support/$(DIRECT_ID)"
+	-rm -rf "$(HOME)/Library/Application Support/$(MAS_ID)"
+	-rm -rf "$(HOME)/Library/Application Support/com.aarsla.audioshift"
+	-rm -rf "$(HOME)/Library/Caches/$(DIRECT_ID)"
+	-rm -rf "$(HOME)/Library/Caches/$(MAS_ID)"
+	-rm -rf "$(HOME)/Library/Caches/com.aarsla.audioshift"
+	-rm -rf "$(HOME)/Library/Caches/audioshift"
+	-rm -rf "$(HOME)/Library/Preferences/audioshift.plist"
+	-rm -rf "$(HOME)/Library/WebKit/$(DIRECT_ID)"
+	-rm -rf "$(HOME)/Library/WebKit/$(MAS_ID)"
+	-rm -rf "$(HOME)/Library/WebKit/com.aarsla.audioshift"
+	-rm -rf "$(HOME)/Library/WebKit/audioshift"
+	-tccutil reset Accessibility $(DIRECT_ID)
+	-tccutil reset Accessibility $(MAS_ID)
+	-tccutil reset Microphone $(DIRECT_ID)
+	-tccutil reset Microphone $(MAS_ID)
+	@echo "Clean slate done"
 
 MAS_APP = src-tauri/target/aarch64-apple-darwin/release/bundle/macos/AudioShift.app
 
@@ -82,7 +107,7 @@ pkg: build-mas
 run-mas: build-mas
 	-tccutil reset Microphone
 	-tccutil reset Accessibility
-	-rm -f "$(HOME)/Library/Application Support/io.audioshift.app/settings.json"
+	-rm -f "$(HOME)/Library/Application Support/$(MAS_ID)/settings.json"
 	open src-tauri/target/aarch64-apple-darwin/release/bundle/macos/AudioShift.app
 
 check:

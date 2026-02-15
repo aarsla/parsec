@@ -271,7 +271,8 @@ export default function Settings() {
       localStorage.setItem("accentColor", accent);
 
       try {
-        if (buildVariant === "mas") {
+        const isMacOS = navigator.userAgent.includes("Mac");
+        if (isMacOS) {
           const enabled = await invoke<boolean>("mas_login_item_is_enabled");
           setAutostart(enabled);
         } else {
@@ -358,7 +359,8 @@ export default function Settings() {
 
   const handleAutostartChange = async (enabled: boolean) => {
     try {
-      if (buildVariant === "mas") {
+      const isMacOS = navigator.userAgent.includes("Mac");
+      if (isMacOS) {
         if (enabled) await invoke("mas_login_item_enable");
         else await invoke("mas_login_item_disable");
       } else {
