@@ -49,9 +49,10 @@ AudioShift processes everything locally. Zero network calls during transcription
 
 Download the `.dmg` from the [releases page](https://github.com/aarsla/audioshift/releases). The app is signed and notarized.
 
-Two permissions are required:
+Three permissions are required:
 - **Microphone** — to capture audio for transcription
 - **Accessibility** — to paste transcribed text into the active application
+- **Documents Folder** — to save transcription history and audio recordings to `~/Documents/AudioShift`
 
 You'll be prompted on first use. Manage in **System Settings > Privacy & Security**.
 
