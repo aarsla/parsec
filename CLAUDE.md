@@ -76,6 +76,20 @@ make release x.y.z  # Bump version everywhere, commit, push, tag → triggers CI
 
 Version is hardcoded in 5 files — `make release` updates all of them: `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, `src/components/Settings.tsx`, `src/components/settings/AboutPage.tsx`.
 
+### Release commits
+
+When Claude makes a release, don't use `make release`. Instead: run the sed/cargo commands to bump versions, then commit with a changelog:
+
+```
+v1.0.7
+
+- Fix accessibility permission detection on signed builds
+- Change bundle ID to io.audioshift.desktop (fixes TCC permission resets)
+- Drop AppleScript dependencies (use NSWorkspace + SMAppService)
+```
+
+Keep the changelog brief — only user-facing or important changes, no implementation details.
+
 `make dev` runs a bare binary. macOS Accessibility permissions are per-binary and reset on recompile. If paste breaks: `pnpm tauri build --debug --bundles app --target aarch64-apple-darwin`, then re-grant Accessibility.
 
 ## Reactive UI
