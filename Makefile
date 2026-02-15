@@ -103,9 +103,10 @@ release:
 	sed -i '' 's/"version": "[^"]*"/"version": "$(V)"/' package.json
 	sed -i '' 's/"version": "[^"]*"/"version": "$(V)"/' src-tauri/tauri.conf.json
 	sed -i '' 's/^version = "[^"]*"/version = "$(V)"/' src-tauri/Cargo.toml
+	cargo update --manifest-path src-tauri/Cargo.toml --workspace
 	sed -i '' 's/AudioShift v[0-9][0-9.]*/AudioShift v$(V)/' src/components/Settings.tsx
 	sed -i '' 's/v[0-9][0-9.]*/v$(V)/' src/components/settings/AboutPage.tsx
-	git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src/components/Settings.tsx src/components/settings/AboutPage.tsx
+	git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock src/components/Settings.tsx src/components/settings/AboutPage.tsx
 	git commit -m "v$(V)"
 	git push
 	git tag v$(V)
