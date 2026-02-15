@@ -71,9 +71,10 @@ make check        # Rust check (direct)
 make check-mas    # Rust check (MAS)
 make check-ts     # TypeScript check
 make check-all    # All checks
+make release x.y.z  # Bump version everywhere, commit, push, tag → triggers CI
 ```
 
-**`cargo check` alone won't work** — Tauri build script needs `macOSPrivateApi` config. Always use `make check` / `make check-mas`.
+Version is hardcoded in 5 files — `make release` updates all of them: `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, `src/components/Settings.tsx`, `src/components/settings/AboutPage.tsx`.
 
 `make dev` runs a bare binary. macOS Accessibility permissions are per-binary and reset on recompile. If paste breaks: `pnpm tauri build --debug --bundles app --target aarch64-apple-darwin`, then re-grant Accessibility.
 

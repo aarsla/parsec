@@ -86,10 +86,10 @@ run-mas: build-mas
 	open src-tauri/target/aarch64-apple-darwin/release/bundle/macos/AudioShift.app
 
 check:
-	TAURI_CONFIG='{"app":{"macOSPrivateApi":true}}' cargo check --manifest-path src-tauri/Cargo.toml
+	cargo check --manifest-path src-tauri/Cargo.toml
 
 check-mas:
-	TAURI_CONFIG='{"app":{"macOSPrivateApi":true},"plugins":{}}' cargo check --manifest-path src-tauri/Cargo.toml --no-default-features --features mas
+	cargo check --manifest-path src-tauri/Cargo.toml --no-default-features --features mas
 
 check-ts:
 	npx tsc --noEmit
