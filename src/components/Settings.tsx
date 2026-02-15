@@ -24,6 +24,7 @@ import RecordingPage from "./settings/RecordingPage";
 import OutputPage from "./settings/OutputPage";
 import ModelPage from "./settings/ModelPage";
 import AboutPage from "./settings/AboutPage";
+import UpdatesPage from "./settings/UpdatesPage";
 export default function Settings() {
   const [activeSection, setActiveSection] = useState<Section>("general");
   const [devices, setDevices] = useState<string[]>([]);
@@ -575,6 +576,7 @@ export default function Settings() {
     { id: "output", label: "Output", icon: <ClipboardPaste size={16} /> },
     ...(saveHistory ? [{ id: "history" as Section, label: "History", icon: <Clock size={16} /> }] : []),
     { id: "appearance", label: "Appearance", icon: <Palette size={16} /> },
+    ...(!isMas ? [{ id: "updates" as Section, label: "Updates", icon: <Download size={16} /> }] : []),
     ...(isMac ? [{ id: "permissions" as Section, label: "Permissions", icon: <Shield size={16} /> }] : []),
     { id: "about", label: "About", icon: <Info size={16} /> },
   ];
@@ -656,12 +658,9 @@ export default function Settings() {
             onTranslateChange={handleTranslateChange}
           />
         );
-      case "about":
+      case "updates":
         return (
-          <AboutPage
-            liveModelName={models.find((m) => m.id === liveModel)?.name ?? liveModel}
-            liveModelSize={models.find((m) => m.id === liveModel)?.sizeLabel ?? ""}
-            isMas={isMas}
+          <UpdatesPage
             autoUpdate={autoUpdate}
             lastChecked={lastChecked}
             updateStatus={updateStatus}
@@ -674,6 +673,13 @@ export default function Settings() {
             onCheckForUpdates={checkForUpdates}
             onInstallUpdate={handleInstallUpdate}
             onRestart={handleRestart}
+          />
+        );
+      case "about":
+        return (
+          <AboutPage
+            liveModelName={models.find((m) => m.id === liveModel)?.name ?? liveModel}
+            liveModelSize={models.find((m) => m.id === liveModel)?.sizeLabel ?? ""}
           />
         );
       default:
@@ -694,7 +700,7 @@ export default function Settings() {
         <nav className="flex-1 px-3 space-y-0.5">
           {navItems.map((item) => (
             <React.Fragment key={item.id}>
-              {((isMac && item.id === "permissions") || (!isMac && item.id === "about")) && (
+              {(item.id === "updates" || (isMas && item.id === "permissions")) && (
                 <div className="!my-2 mx-1 h-px bg-border" />
               )}
             <NavItem
@@ -751,7 +757,7 @@ export default function Settings() {
               const nav = navItems.find((n) => n.id === activeSection);
               return nav ? (
                 <div className="flex items-center gap-2.5 pt-5 mb-4">
-                  <span className="text-primary">{nav.icon}</span>
+                  <span className="text-primary [&>svg]:size-[18px]">{nav.icon}</span>
                   <h2 className="text-xl font-semibold text-foreground">{nav.label}</h2>
                 </div>
               ) : null;
