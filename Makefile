@@ -1,4 +1,28 @@
-.PHONY: dev clean-dev build run build-mas pkg run-mas check check-mas check-ts check-all
+.PHONY: help dev clean-dev build run build-mas pkg run-mas check check-mas check-ts check-all release
+.DEFAULT_GOAL := help
+
+help:
+	@echo "Usage: make <command>"
+	@echo ""
+	@echo "Development:"
+	@echo "  dev          Dev with hot reload"
+	@echo "  clean-dev    Reset state + dev"
+	@echo "  build        Production build (direct)"
+	@echo "  run          Build + run (resets permissions)"
+	@echo ""
+	@echo "Mac App Store:"
+	@echo "  build-mas    MAS build (aarch64)"
+	@echo "  pkg          Build + sign + package for App Store"
+	@echo "  run-mas      Build + run MAS variant"
+	@echo ""
+	@echo "Checks:"
+	@echo "  check        Rust check (direct)"
+	@echo "  check-mas    Rust check (MAS)"
+	@echo "  check-ts     TypeScript check"
+	@echo "  check-all    All checks"
+	@echo ""
+	@echo "Release:"
+	@echo "  release x.y.z   Bump version, amend commit, force push, tag"
 
 dev:
 	pnpm tauri dev
@@ -71,3 +95,21 @@ check-ts:
 	npx tsc --noEmit
 
 check-all: check check-mas check-ts
+
+# Release: make release 1.0.3 (bumps version, amends last commit, force pushes, tags)
+release:
+	$(eval V := $(filter-out $@,$(MAKECMDGOALS)))
+	@if [ -z "$(V)" ]; then echo "Usage: make release x.y.z"; exit 1; fi
+	sed -i '' 's/"version": "[^"]*"/"version": "$(V)"/' package.json
+	sed -i '' 's/"version": "[^"]*"/"version": "$(V)"/' src-tauri/tauri.conf.json
+	sed -i '' 's/^version = "[^"]*"/version = "$(V)"/' src-tauri/Cargo.toml
+	sed -i '' 's/AudioShift v[0-9][0-9.]*/AudioShift v$(V)/' src/components/Settings.tsx
+	git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src/components/Settings.tsx
+	git commit -m "v$(V)"
+	git push
+	git tag v$(V)
+	git push origin v$(V)
+	@echo "Released v$(V) — workflow triggered"
+
+%:
+	@:
