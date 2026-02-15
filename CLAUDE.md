@@ -57,7 +57,7 @@ src/
 | Config | `tauri.conf.json` | `tauri.mas.conf.json` |
 | macOSPrivateApi | `true` (transparent overlay) | `false` (CALayer fallback) |
 | Distribution | DMG + updater | `.app` for App Store |
-| Bundle ID | `com.aarsla.audioshift` | `io.audioshift.app` |
+| Bundle ID | `io.audioshift.app` | `io.audioshift.app` |
 
 Feature gates: `#[cfg(feature = "updater")]`, `#[cfg(feature = "mas")]`, `#[cfg(not(feature = "mas"))]`, `#[cfg(target_os = "macos")]`
 

@@ -87,11 +87,7 @@ pub fn find_model(id: &str) -> Option<&'static ModelDef> {
 
 fn models_base_dir() -> PathBuf {
     let data_dir = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
-    let app_id = if cfg!(feature = "mas") {
-        "io.audioshift.app"
-    } else {
-        "com.aarsla.audioshift"
-    };
+    let app_id = "io.audioshift.app";
     data_dir.join(app_id).join("models")
 }
 

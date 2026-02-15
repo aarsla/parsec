@@ -29,10 +29,10 @@ dev:
 
 clean-dev:
 	-pkill -f AudioShift
-	-tccutil reset Microphone com.aarsla.audioshift
-	-tccutil reset Accessibility com.aarsla.audioshift
-	-rm -f "$(HOME)/Library/Application Support/com.aarsla.audioshift/settings.json"
-	-rm -f "$(HOME)/Library/Application Support/com.aarsla.audioshift/history.json"
+	-tccutil reset Microphone io.audioshift.app
+	-tccutil reset Accessibility io.audioshift.app
+	-rm -f "$(HOME)/Library/Application Support/io.audioshift.app/settings.json"
+	-rm -f "$(HOME)/Library/Application Support/io.audioshift.app/history.json"
 	-rm -rf "$(HOME)/Documents/AudioShift"
 	pnpm tauri dev
 
@@ -42,8 +42,8 @@ build:
 run: build
 	-tccutil reset Microphone
 	-tccutil reset Accessibility
-	-rm -f "$(HOME)/Library/Application Support/com.aarsla.audioshift/settings.json"
-	-rm -f "$(HOME)/Library/Application Support/com.aarsla.audioshift/history.json"
+	-rm -f "$(HOME)/Library/Application Support/io.audioshift.app/settings.json"
+	-rm -f "$(HOME)/Library/Application Support/io.audioshift.app/history.json"
 	-rm -rf "$(HOME)/Documents/AudioShift"
 	open src-tauri/target/release/bundle/macos/AudioShift.app
 
