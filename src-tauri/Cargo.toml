@@ -46,6 +46,7 @@ macos-accessibility-client = "0.0.1"
 core-graphics = "0.24"
 cocoa = "0.26"
 objc = "0.2.7"
+objc2-app-kit = { version = "0.3.2", features = ["NSMenu", "NSMenuItem", "NSApplication", "NSRunningApplication"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 parakeet-rs = "0.3"

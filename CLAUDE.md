@@ -101,6 +101,7 @@ The frontend must always reflect current backend state. These rules apply to all
 
 ## Conventions
 
+- **No Apple private APIs.** Both direct and MAS builds must only use public, documented Apple APIs. Private APIs cause App Store rejection and can break across macOS updates.
 - Tailwind v4 `@theme inline` with OKLch color space
 - Path alias: `@/` → `src/`
 - Settings dual-persisted: `localStorage` (sync, flash-free) + tauri store `settings.json` (durable)

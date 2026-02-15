@@ -1,4 +1,6 @@
 mod commands;
+#[cfg(target_os = "macos")]
+mod dock_menu;
 mod escape_monitor;
 mod file_storage;
 mod frontmost;
@@ -124,7 +126,7 @@ pub fn run() {
                 hotkey::register_default_hotkey(app)?;
             }
 
-            // Restore dock visibility setting
+            // Restore dock visibility setting + dock right-click menu
             #[cfg(target_os = "macos")]
             {
                 let dock_visible = app
@@ -136,6 +138,7 @@ pub fn run() {
                 if !dock_visible {
                     let _ = app.set_dock_visibility(false);
                 }
+                dock_menu::setup_dock_menu(&app.handle());
             }
 
             // Preload AI model in background for faster first transcription
