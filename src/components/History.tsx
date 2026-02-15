@@ -3,7 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { Search, Copy, Trash2, Check, ChevronLeft, ChevronRight, X, FileText, FolderOpen } from "lucide-react";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { Search, Copy, Trash2, Check, ChevronLeft, ChevronRight, X, FileText, FolderOpen, TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -75,6 +76,7 @@ export default function History() {
     const stored = localStorage.getItem("historyDateFilter");
     return stored === "today" || stored === "yesterday" ? stored : "all";
   });
+  const [error, setError] = useState<string | null>(null);
   const [listWidth, setListWidth] = useState(256);
   const dragging = useRef(false);
   const PAGE_SIZE = 15;
@@ -114,8 +116,10 @@ export default function History() {
     try {
       const data = await invoke<HistoryEntry[]>("get_history");
       setEntries(data);
+      setError(null);
     } catch (e) {
-      console.error("Failed to load history:", e);
+      setEntries([]);
+      setError(String(e));
     }
   };
 
@@ -127,6 +131,15 @@ export default function History() {
     return () => {
       unlisten.then((fn) => fn());
     };
+  }, []);
+
+  // Recheck on window focus (e.g. after granting Documents access in System Settings)
+  useEffect(() => {
+    const win = getCurrentWebviewWindow();
+    const unlisten = win.onFocusChanged(({ payload: focused }) => {
+      if (focused) loadEntries();
+    });
+    return () => { unlisten.then((fn) => fn()); };
   }, []);
 
   const filtered = useMemo(() => {
@@ -267,8 +280,28 @@ export default function History() {
           </div>
         </div>
 
+        {error && (
+          <div className="mx-2 mb-1 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <div className="flex items-start gap-2">
+              <TriangleAlert size={14} className="text-destructive shrink-0 mt-0.5" />
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-destructive">Documents access required</p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  AudioShift needs access to your Documents folder to save and view transcription history.
+                </p>
+                <button
+                  onClick={() => invoke("open_privacy_settings", { pane: "files-and-folders" })}
+                  className="text-[11px] font-medium text-destructive hover:underline"
+                >
+                  Grant Access
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex-1 min-h-0 overflow-y-auto px-2">
-          {filtered.length === 0 ? (
+          {filtered.length === 0 && !error ? (
             <p className="text-xs text-muted-foreground text-center py-8">
               {entries.length === 0
                 ? "No transcriptions yet"
@@ -509,17 +542,36 @@ export default function History() {
         ) : (
           <div className="h-full flex flex-col items-center justify-center gap-3">
             <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-              <FileText size={20} className="text-muted-foreground" />
+              {error ? (
+                <TriangleAlert size={20} className="text-destructive" />
+              ) : (
+                <FileText size={20} className="text-muted-foreground" />
+              )}
             </div>
             <div className="text-center">
               <p className="text-sm font-medium text-foreground">
-                {entries.length === 0 ? "No transcriptions yet" : "No transcription selected"}
+                {error
+                  ? "Cannot access history"
+                  : entries.length === 0
+                    ? "No transcriptions yet"
+                    : "No transcription selected"}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {entries.length === 0
-                  ? "Transcriptions will appear here"
-                  : "Select a transcription to view details"}
+                {error
+                  ? "Grant Documents access to view transcription history"
+                  : entries.length === 0
+                    ? "Transcriptions will appear here"
+                    : "Select a transcription to view details"}
               </p>
+              {error && (
+                <button
+                  onClick={() => invoke("open_privacy_settings", { pane: "files-and-folders" })}
+                  className="mt-2 px-3 py-1.5 text-xs rounded-md bg-secondary border border-border
+                             hover:bg-accent text-foreground transition-colors"
+                >
+                  Open System Settings
+                </button>
+              )}
             </div>
           </div>
         )}

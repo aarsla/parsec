@@ -70,6 +70,9 @@ clean:
 	-tccutil reset Accessibility $(MAS_ID)
 	-tccutil reset Microphone $(DIRECT_ID)
 	-tccutil reset Microphone $(MAS_ID)
+	-tccutil reset SystemPolicyDocumentsFolder $(DIRECT_ID)
+	-tccutil reset SystemPolicyDocumentsFolder $(MAS_ID)
+	-tccutil reset SystemPolicyDocumentsFolder
 	@echo "Clean slate done"
 
 MAS_APP = src-tauri/target/aarch64-apple-darwin/release/bundle/macos/AudioShift.app

@@ -48,12 +48,12 @@ pub fn save_recording(samples: &[f32], meta: &RecordingMeta) -> Result<PathBuf> 
     Ok(dir)
 }
 
-pub fn load_all_recordings() -> Vec<RecordingMeta> {
+pub fn load_all_recordings() -> Result<Vec<RecordingMeta>> {
     let base = recordings_dir();
-    let entries = match fs::read_dir(&base) {
-        Ok(e) => e,
-        Err(_) => return Vec::new(),
-    };
+    if !base.exists() {
+        return Ok(Vec::new());
+    }
+    let entries = fs::read_dir(&base).context("Cannot access recordings directory")?;
 
     let mut metas: Vec<RecordingMeta> = entries
         .filter_map(|entry| {
@@ -68,7 +68,7 @@ pub fn load_all_recordings() -> Vec<RecordingMeta> {
         .collect();
 
     metas.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-    metas
+    Ok(metas)
 }
 
 pub fn delete_recording(id: &str) -> Result<()> {

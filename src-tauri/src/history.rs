@@ -64,9 +64,10 @@ pub fn add_entry(app: &AppHandle, info: RecordingInfo) {
     let _ = app.emit("history-updated", ());
 }
 
-pub fn get_entries(_app: &AppHandle) -> Vec<HistoryEntry> {
+pub fn get_entries(_app: &AppHandle) -> Result<Vec<HistoryEntry>, String> {
     let base = file_storage::recordings_dir();
-    file_storage::load_all_recordings()
+    let metas = file_storage::load_all_recordings().map_err(|e| e.to_string())?;
+    let entries = metas
         .into_iter()
         .map(|meta| {
             let dir = base.join(&meta.id);
@@ -86,7 +87,8 @@ pub fn get_entries(_app: &AppHandle) -> Vec<HistoryEntry> {
                 app_version: meta.app_version,
             }
         })
-        .collect()
+        .collect();
+    Ok(entries)
 }
 
 pub fn delete_entry(app: &AppHandle, id: &str) {

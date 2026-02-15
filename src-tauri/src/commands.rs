@@ -232,7 +232,7 @@ pub fn request_accessibility_permission() -> String {
 }
 
 #[tauri::command]
-pub fn get_history(app: tauri::AppHandle) -> Vec<history::HistoryEntry> {
+pub fn get_history(app: tauri::AppHandle) -> Result<Vec<history::HistoryEntry>, String> {
     history::get_entries(&app)
 }
 
@@ -269,6 +269,7 @@ pub fn open_privacy_settings(pane: String) {
         let url = match pane.as_str() {
             "microphone" => "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone",
             "accessibility" => "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+            "files-and-folders" => "x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders",
             _ => return,
         };
 
