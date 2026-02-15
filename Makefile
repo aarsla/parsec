@@ -94,7 +94,7 @@ check-mas:
 check-ts:
 	npx tsc --noEmit
 
-check-all: check check-mas check-ts
+check-all: check-mas check check-ts
 
 # Release: make release 1.0.3 (bumps version, amends last commit, force pushes, tags)
 release:
