@@ -55,7 +55,7 @@ src/
 |---|---|---|
 | Features | `default` (includes `updater`) | `mas` (no updater, no autostart) |
 | Config | `tauri.conf.json` | `tauri.mas.conf.json` |
-| macOSPrivateApi | `true` (transparent overlay) | `false` (CALayer fallback) |
+| macOSPrivateApi | `false` | `false` |
 | Distribution | DMG + updater | `.app` for App Store |
 | Bundle ID | `io.audioshift.desktop` | `io.audioshift.app` |
 

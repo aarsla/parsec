@@ -36,9 +36,11 @@ interface ThemeConfig {
   showWaveform: boolean;
   containerClass: string;
   waveformColor: string;
+  /** Native CALayer corner radius (macOS). Matches CSS border-radius to avoid gap. */
+  nativeRadius: number;
 }
 
-const IS_WINDOWS = navigator.userAgent.includes("Windows");
+const IS_MAC = navigator.userAgent.includes("Mac");
 
 const THEME_CONFIGS: Record<OverlayTheme, ThemeConfig> = {
   default: {
@@ -46,27 +48,29 @@ const THEME_CONFIGS: Record<OverlayTheme, ThemeConfig> = {
     showWaveform: true,
     containerClass: "bg-background/90 rounded-3xl",
     waveformColor: "",
+    nativeRadius: 22, // rounded-3xl = --radius + 12px = 22px
   },
   minimal: {
     w: 320, h: 44,
     showWaveform: false,
     containerClass: "bg-background/90 rounded-full",
     waveformColor: "",
+    nativeRadius: 22, // half of 44px height → pill
   },
   glass: {
     w: 320, h: 96,
     showWaveform: true,
-    // Windows: same as default (backdrop-blur breaks canvas in WebView2, transparency unreliable)
-    containerClass: IS_WINDOWS
-      ? "bg-background/90 rounded-3xl"
-      : "bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl",
-    waveformColor: IS_WINDOWS ? "" : "255, 255, 255",
+    // Semi-transparent dark glass look. No backdrop-filter (kills canvas in WebKit).
+    containerClass: "bg-zinc-900/75 border border-white/15 rounded-3xl",
+    waveformColor: "255, 255, 255",
+    nativeRadius: 22,
   },
   compact: {
     w: 110, h: 36,
     showWaveform: false,
-    containerClass: "bg-background/90 rounded-full",
+    containerClass: "bg-background/90 rounded-xl",
     waveformColor: "",
+    nativeRadius: 14, // rounded-xl = --radius + 4px = 14px
   },
 };
 
@@ -198,28 +202,22 @@ export default function RecordingOverlay({ status }: Props) {
   const config = THEME_CONFIGS[theme];
   const waveformColor = config.waveformColor || (ACCENT_RGB[accentKey] || ACCENT_RGB.blue);
 
-  // Set overlay background
+  // Transparent body so backdrop-blur (glass) can see through to desktop.
+  // CALayer mask radius matches CSS radius exactly — no gap visible.
   useEffect(() => {
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
-    invoke<string>("get_build_variant").then((variant) => {
-      if (variant === "mas") {
-        document.documentElement.style.background = "#000";
-        document.body.style.background = "#000";
-      } else {
-        document.documentElement.style.background = "transparent";
-        document.body.style.background = "transparent";
-      }
-    }).catch(() => {
-      document.documentElement.style.background = "transparent";
-      document.body.style.background = "transparent";
-    });
+    document.documentElement.style.background = "transparent";
+    document.body.style.background = "transparent";
   }, []);
 
   useEffect(() => {
     const win = getCurrentWebviewWindow();
 
     if (status === "recording") {
+      if (IS_MAC) {
+        invoke("set_overlay_corner_radius", { radius: config.nativeRadius }).catch(() => {});
+      }
       positionOverlay(win, config.w, config.h).then(() => win.show());
       setSeconds(0);
       setAmplitudes([]);
@@ -308,6 +306,7 @@ export default function RecordingOverlay({ status }: Props) {
   }
 
   // Default / Glass: full layout with waveform + timer + hotkey hints
+  // Glass uses native NSVisualEffectView for blur — no CSS backdrop-filter needed.
   return (
     <div
       className={`flex flex-col h-full px-4 py-3 select-none ${config.containerClass}`}

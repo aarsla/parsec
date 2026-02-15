@@ -220,14 +220,10 @@ pub fn request_accessibility_permission() -> String {
         if status == "granted" {
             return "granted".to_string();
         }
-        // application_is_trusted_with_prompt only shows the prompt once;
-        // after that macOS silently returns false, so open System Settings
-        if macos_accessibility_client::accessibility::application_is_trusted_with_prompt() {
-            "granted".to_string()
-        } else {
-            open_privacy_settings("accessibility".to_string());
-            "denied".to_string()
-        }
+        // Don't call AXIsProcessTrustedWithOptions(prompt=true) — on macOS 16
+        // it resets existing permissions. Just open System Settings directly.
+        open_privacy_settings("accessibility".to_string());
+        "denied".to_string()
     }
     #[cfg(not(target_os = "macos"))]
     {
@@ -553,6 +549,30 @@ pub fn restart_app(app: tauri::AppHandle) {
         std::thread::sleep(std::time::Duration::from_millis(200));
         app.restart();
     });
+}
+
+#[tauri::command]
+pub fn set_overlay_corner_radius(window: tauri::WebviewWindow, radius: f64) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        window
+            .with_webview(move |webview| {
+                unsafe {
+                    let ns_window: *mut objc2::runtime::AnyObject = webview.ns_window().cast();
+                    let content_view: *mut objc2::runtime::AnyObject =
+                        objc2::msg_send![ns_window, contentView];
+                    let layer: *mut objc2::runtime::AnyObject =
+                        objc2::msg_send![content_view, layer];
+                    if !layer.is_null() {
+                        let _: () = objc2::msg_send![layer, setCornerRadius: radius];
+                    }
+                }
+            })
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = (window, radius);
+    Ok(())
 }
 
 #[tauri::command]

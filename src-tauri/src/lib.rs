@@ -86,6 +86,7 @@ pub fn run() {
             commands::set_translate_to_english,
             commands::is_download_in_progress,
             commands::restart_app,
+            commands::set_overlay_corner_radius,
             commands::get_build_variant,
             updater::check_for_updates,
             updater::install_update,
