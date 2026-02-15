@@ -26,7 +26,7 @@ export default function AboutPage({
             Stop typing.{" "}
             <span className="text-primary">Start speaking.</span>
           </h3>
-          <p className="text-[11px] text-muted-foreground/60 mt-1 font-mono">v1.0.4</p>
+          <p className="text-[11px] text-muted-foreground/60 mt-1 font-mono">v1.0.5</p>
         </div>
         <div className="shrink-0 flex items-center pr-2">
           <div className="flex items-center gap-[3px] h-12">
@@ -58,7 +58,7 @@ export default function AboutPage({
       <SectionCard title="About AudioShift" icon={<Info size={14} />}>
         <SettingRow label="Version" description="Current app version">
           <span className="text-sm text-muted-foreground font-mono">
-            v1.0.4
+            v1.0.5
           </span>
         </SettingRow>
         <Separator />
