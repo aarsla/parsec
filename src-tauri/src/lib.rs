@@ -124,6 +124,20 @@ pub fn run() {
                 hotkey::register_default_hotkey(app)?;
             }
 
+            // Restore dock visibility setting
+            #[cfg(target_os = "macos")]
+            {
+                let dock_visible = app
+                    .store("settings.json")
+                    .ok()
+                    .and_then(|s| s.get("showInDock"))
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true);
+                if !dock_visible {
+                    let _ = app.set_dock_visibility(false);
+                }
+            }
+
             // Preload AI model in background for faster first transcription
             {
                 let live_model = app

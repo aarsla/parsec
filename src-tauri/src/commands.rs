@@ -500,6 +500,34 @@ pub fn is_download_in_progress() -> bool {
 pub fn complete_onboarding(app: tauri::AppHandle) {
     if let Ok(store) = app.store("settings.json") {
         let _ = store.set("onboardingCompleted", serde_json::json!(true));
+
+        // Seed default settings so every key has an explicit initial value.
+        // Only write keys that don't already exist (user may have changed
+        // settings during onboarding, e.g. model selection).
+        let defaults = serde_json::json!({
+            "themeMode": "system",
+            "accentColor": "orange",
+            "showInDock": true,
+            "startSound": "none",
+            "overlayPosition": "top-center",
+            "overlayTheme": "default",
+            "pasteMode": "auto",
+            "inputDevice": "default",
+            "liveModel": model_registry::DEFAULT_MODEL_ID,
+            "transcriptionLanguage": "auto",
+            "translateToEnglish": false,
+            "saveHistory": true,
+            "autoUpdate": true,
+            "hotkey": crate::hotkey::default_hotkey(),
+        });
+
+        if let Some(obj) = defaults.as_object() {
+            for (key, value) in obj {
+                if store.get(key).is_none() {
+                    let _ = store.set(key, value.clone());
+                }
+            }
+        }
     }
 }
 
