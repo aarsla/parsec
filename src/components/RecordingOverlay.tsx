@@ -215,10 +215,10 @@ export default function RecordingOverlay({ status }: Props) {
     const win = getCurrentWebviewWindow();
 
     if (status === "recording") {
-      if (IS_MAC) {
-        invoke("set_overlay_corner_radius", { radius: config.nativeRadius }).catch(() => {});
-      }
-      positionOverlay(win, config.w, config.h).then(() => win.show());
+      const setup = IS_MAC
+        ? invoke("set_overlay_corner_radius", { radius: config.nativeRadius })
+        : Promise.resolve();
+      setup.then(() => positionOverlay(win, config.w, config.h)).then(() => win.show());
       setSeconds(0);
       setAmplitudes([]);
       timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);

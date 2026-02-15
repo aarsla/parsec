@@ -191,9 +191,11 @@ export default function Onboarding() {
 
   const closeWindow = async () => {
     await invoke("set_live_model", { modelId: selectedModelId });
-    invoke("complete_onboarding").finally(() => {
-      getCurrentWebviewWindow().close();
-    });
+    // Hide immediately, then let Rust destroy after WebKit's pending run loop tasks drain.
+    // Calling window.close() from JS triggers immediate WebPageProxy destruction, which
+    // causes SIGSEGV in dispatchSetObscuredContentInsets on macOS 26.
+    getCurrentWebviewWindow().hide();
+    invoke("complete_onboarding");
   };
 
   const isDownloading = progress != null;

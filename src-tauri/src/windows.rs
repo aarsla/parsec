@@ -17,6 +17,10 @@ pub fn create_overlay_window(app: &tauri::AppHandle) -> tauri::Result<()> {
         .focused(false)
         .skip_taskbar(true);
 
+    // macOS: all transparency setup (NSWindow + CALayer + WKWebView) is deferred to
+    // set_overlay_corner_radius (called from JS before overlay is shown) to avoid a WebKit
+    // async task race that causes SIGSEGV on first launch after onboarding.
+
     // Windows: transparent + no shadow (shadow creates rectangular frame around rounded corners)
     #[cfg(target_os = "windows")]
     let builder = builder.transparent(true).shadow(false);
@@ -41,46 +45,7 @@ pub fn create_overlay_window(app: &tauri::AppHandle) -> tauri::Result<()> {
         }
     }
 
-    // macOS: transparent borderless window with rounded corners (all public APIs).
-    // Based on the standard AppKit approach:
-    // 1. Borderless window (decorations: false) + isOpaque=NO + backgroundColor=clear
-    // 2. Content view layer: backgroundColor=clear CGColor + cornerRadius + masksToBounds
-    // 3. WKWebView: isOpaque=NO + underPageBackgroundColor=clear
-    // CSS provides the visual background; CALayer mask clips to rounded corners.
-    #[cfg(target_os = "macos")]
-    {
-        use objc2::runtime::AnyObject;
-
-        let _ = win.with_webview(|webview| {
-            unsafe {
-                let ns_window: *mut AnyObject = webview.ns_window().cast();
-                let clear: *mut AnyObject = objc2::msg_send![objc2::class!(NSColor), clearColor];
-
-                // Step 1: transparent borderless window
-                let _: () = objc2::msg_send![ns_window, setOpaque: false];
-                let _: () = objc2::msg_send![ns_window, setBackgroundColor: clear];
-                let _: () = objc2::msg_send![ns_window, setHasShadow: true];
-
-                // Step 2: content view layer — clear background + rounded mask
-                let content_view: *mut AnyObject = objc2::msg_send![ns_window, contentView];
-                let _: () = objc2::msg_send![content_view, setWantsLayer: true];
-                let layer: *mut AnyObject = objc2::msg_send![content_view, layer];
-                if !layer.is_null() {
-                    let clear_cg: *mut AnyObject = objc2::msg_send![clear, CGColor];
-                    let _: () = objc2::msg_send![layer, setBackgroundColor: clear_cg];
-                    let _: () = objc2::msg_send![layer, setCornerRadius: 22.0_f64];
-                    let _: () = objc2::msg_send![layer, setMasksToBounds: true];
-                }
-
-                // Step 3: WKWebView transparency
-                let wk_webview: *mut AnyObject = webview.inner().cast();
-                let _: () = objc2::msg_send![wk_webview, setOpaque: false];
-                let _: () = objc2::msg_send![wk_webview, setUnderPageBackgroundColor: clear];
-            }
-        });
-    }
-
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    #[cfg(not(target_os = "windows"))]
     let _ = win;
 
     Ok(())

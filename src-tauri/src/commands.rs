@@ -1,6 +1,6 @@
 use crate::{escape_monitor, frontmost, history, model_registry, paster, recorder, state, transcriber};
 use crate::state::AppState;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tauri_plugin_store::StoreExt;
 
 #[tauri::command]
@@ -535,6 +535,16 @@ pub fn complete_onboarding(app: tauri::AppHandle) {
             }
         }
     }
+
+    // Destroy onboarding window after a delay so WebKit's pending run loop tasks
+    // (e.g. dispatchSetObscuredContentInsets) drain before the WebPageProxy is freed.
+    // JS side already called window.hide() for instant visual feedback.
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        if let Some(win) = app.get_webview_window("onboarding") {
+            let _ = win.destroy();
+        }
+    });
 }
 
 #[tauri::command]
@@ -558,14 +568,31 @@ pub fn set_overlay_corner_radius(window: tauri::WebviewWindow, radius: f64) -> R
         window
             .with_webview(move |webview| {
                 unsafe {
-                    let ns_window: *mut objc2::runtime::AnyObject = webview.ns_window().cast();
-                    let content_view: *mut objc2::runtime::AnyObject =
-                        objc2::msg_send![ns_window, contentView];
-                    let layer: *mut objc2::runtime::AnyObject =
-                        objc2::msg_send![content_view, layer];
+                    use objc2::runtime::AnyObject;
+
+                    let ns_window: *mut AnyObject = webview.ns_window().cast();
+                    let clear: *mut AnyObject = objc2::msg_send![objc2::class!(NSColor), clearColor];
+
+                    // NSWindow transparency (deferred from creation to avoid WebKit race)
+                    let _: () = objc2::msg_send![ns_window, setOpaque: false];
+                    let _: () = objc2::msg_send![ns_window, setBackgroundColor: clear];
+                    let _: () = objc2::msg_send![ns_window, setHasShadow: true];
+
+                    // Content view layer — clear background + rounded mask
+                    let content_view: *mut AnyObject = objc2::msg_send![ns_window, contentView];
+                    let _: () = objc2::msg_send![content_view, setWantsLayer: true];
+                    let layer: *mut AnyObject = objc2::msg_send![content_view, layer];
                     if !layer.is_null() {
+                        let clear_cg: *mut AnyObject = objc2::msg_send![clear, CGColor];
+                        let _: () = objc2::msg_send![layer, setBackgroundColor: clear_cg];
                         let _: () = objc2::msg_send![layer, setCornerRadius: radius];
+                        let _: () = objc2::msg_send![layer, setMasksToBounds: true];
                     }
+
+                    // WKWebView transparency
+                    let wk_webview: *mut AnyObject = webview.inner().cast();
+                    let _: () = objc2::msg_send![wk_webview, setOpaque: false];
+                    let _: () = objc2::msg_send![wk_webview, setUnderPageBackgroundColor: clear];
                 }
             })
             .map_err(|e| e.to_string())?;
