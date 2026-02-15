@@ -735,7 +735,7 @@ export default function Settings() {
         )}
         <div className="px-3 pb-3">
           <p className="text-[11px] text-muted-foreground/50 px-3">
-            AudioShift v1.0.6
+            AudioShift v1.0.7
           </p>
         </div>
       </div>
