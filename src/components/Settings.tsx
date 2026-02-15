@@ -707,6 +707,7 @@ export default function Settings() {
               icon={item.icon}
               label={item.label}
               active={activeSection === item.id}
+              badge={item.id === "updates" && (updateStatus === "available" || updateStatus === "downloading" || updateStatus === "restart-pending")}
               onClick={() => { setActiveSection(item.id); setTestingMic(false); }}
             />
             </React.Fragment>

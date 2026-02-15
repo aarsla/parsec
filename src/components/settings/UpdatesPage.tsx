@@ -1,4 +1,4 @@
-import { Download, RefreshCw, Check, Loader2 } from "lucide-react";
+import { Download, RefreshCw, Check, Loader2, ArrowUpCircle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { SectionCard, SettingRow, formatBytes, type UpdateStatus } from "./shared";
@@ -23,8 +23,53 @@ export default function UpdatesPage({
   updateVersion, updateBody, updateDownloaded, updateTotal,
   onAutoUpdateChange, onCheckForUpdates, onInstallUpdate, onRestart,
 }: Props) {
+  const hasUpdate = updateStatus === "available" || updateStatus === "downloading" || updateStatus === "restart-pending";
+
   return (
     <div className="space-y-4">
+      {hasUpdate && updateStatus === "available" && updateVersion && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <ArrowUpCircle size={18} className="text-amber-500 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-foreground">
+              Version {updateVersion} is available
+            </p>
+            {updateBody && (
+              <p className="text-xs text-muted-foreground mt-0.5 whitespace-pre-line line-clamp-2">
+                {updateBody}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={onInstallUpdate}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md
+                       bg-amber-500 text-white hover:bg-amber-600
+                       transition-colors"
+          >
+            <Download size={12} />
+            Install & Restart
+          </button>
+        </div>
+      )}
+
+      {hasUpdate && updateStatus === "restart-pending" && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <Check size={18} className="text-amber-500 shrink-0" />
+          <p className="text-sm font-medium text-foreground flex-1">
+            Update ready — restart to apply
+          </p>
+          <button
+            onClick={onRestart}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md
+                       bg-amber-500 text-white hover:bg-amber-600
+                       transition-colors"
+          >
+            <RefreshCw size={12} />
+            Restart Now
+          </button>
+        </div>
+      )}
+
       <SectionCard title="Updates" icon={<Download size={14} />}>
         <SettingRow
           label="Automatic Updates"
@@ -68,32 +113,6 @@ export default function UpdatesPage({
         </div>
       </SectionCard>
 
-      {updateStatus === "available" && updateVersion && (
-        <SectionCard title="Update Available" icon={<Download size={14} />}>
-          <div className="px-4 py-3 space-y-3">
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                Version {updateVersion} is available
-              </p>
-              {updateBody && (
-                <p className="text-xs text-muted-foreground mt-1 whitespace-pre-line">
-                  {updateBody}
-                </p>
-              )}
-            </div>
-            <button
-              onClick={onInstallUpdate}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md
-                         bg-primary text-primary-foreground hover:bg-primary/90
-                         transition-colors"
-            >
-              <Download size={12} />
-              Install & Restart
-            </button>
-          </div>
-        </SectionCard>
-      )}
-
       {updateStatus === "downloading" && (
         <SectionCard title="Installing Update" icon={<Download size={14} />}>
           <div className="px-4 py-3 space-y-2">
@@ -118,24 +137,6 @@ export default function UpdatesPage({
         </SectionCard>
       )}
 
-      {updateStatus === "restart-pending" && (
-        <SectionCard title="Update Ready" icon={<Check size={14} />}>
-          <div className="px-4 py-3 space-y-3">
-            <p className="text-sm text-foreground">
-              Update has been downloaded and installed. Restart to apply.
-            </p>
-            <button
-              onClick={onRestart}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md
-                         bg-primary text-primary-foreground hover:bg-primary/90
-                         transition-colors"
-            >
-              <RefreshCw size={12} />
-              Restart Now
-            </button>
-          </div>
-        </SectionCard>
-      )}
     </div>
   );
 }

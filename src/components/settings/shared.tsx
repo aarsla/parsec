@@ -266,11 +266,13 @@ export function NavItem({
   icon,
   label,
   active,
+  badge,
   onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   active: boolean;
+  badge?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -279,11 +281,16 @@ export function NavItem({
       className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
         active
           ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-          : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50"
+          : badge
+            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
+            : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50"
       }`}
     >
-      <span style={active ? { color: "var(--primary)" } : undefined}>{icon}</span>
+      <span style={active ? { color: "var(--primary)" } : badge ? { color: "var(--amber, currentColor)" } : undefined}>{icon}</span>
       {label}
+      {badge && (
+        <span className="ml-auto w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+      )}
     </button>
   );
 }
