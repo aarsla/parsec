@@ -1,6 +1,6 @@
 [package]
 name = "audioshift"
-version = "1.0.2"
+version = "1.0.3"
 description = "AudioShift - local voice to text transcription"
 authors = ["Aid Arslanagic"]
 edition = "2021"
