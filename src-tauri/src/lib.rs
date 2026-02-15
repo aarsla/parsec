@@ -22,6 +22,12 @@ use tauri_plugin_store::StoreExt;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Force WebView2 transparent background before any window/controller creation.
+    // This is the Microsoft-documented way to ensure transparency, bypassing
+    // timing issues and dark-theme overrides that affect the API approach.
+    #[cfg(target_os = "windows")]
+    unsafe { std::env::set_var("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "0") };
+
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())

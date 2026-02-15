@@ -17,25 +17,32 @@ pub fn create_overlay_window(app: &tauri::AppHandle) -> tauri::Result<()> {
         .focused(false)
         .skip_taskbar(true);
 
-    // Non-MAS: transparent window so CSS border-radius shows through
     #[cfg(not(feature = "mas"))]
-    let builder = builder.transparent(true).background_color(Color(0, 0, 0, 0));
+    let builder = builder.transparent(true);
+
+    // Windows: disable shadow — it creates a rectangular frame that makes
+    // transparent rounded corners look boxed (tauri-apps/tauri#9287)
+    #[cfg(target_os = "windows")]
+    let builder = builder.shadow(false);
 
     let win = builder.build()?;
 
-    // Windows 11: apply rounded corners via DWM
+    // Windows 11+: round corners at OS compositor level via DWM.
+    // Works independently of WebView2 transparency — provides 8px rounded
+    // corners as fallback, with CSS rounded-3xl showing through if transparent.
     #[cfg(target_os = "windows")]
     {
         use windows::Win32::Foundation::HWND;
         use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE};
+
         let hwnd = HWND(win.hwnd().unwrap().0);
-        let preference: i32 = 2; // DWMWCP_ROUND
+        let preference: u32 = 2; // DWMWCP_ROUND
         unsafe {
             let _ = DwmSetWindowAttribute(
                 hwnd,
                 DWMWA_WINDOW_CORNER_PREFERENCE,
-                &preference as *const _ as *const _,
-                std::mem::size_of::<i32>() as u32,
+                &preference as *const _ as *const std::ffi::c_void,
+                std::mem::size_of::<u32>() as u32,
             );
         }
     }

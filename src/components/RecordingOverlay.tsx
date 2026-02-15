@@ -38,6 +38,8 @@ interface ThemeConfig {
   waveformColor: string;
 }
 
+const IS_WINDOWS = navigator.userAgent.includes("Windows");
+
 const THEME_CONFIGS: Record<OverlayTheme, ThemeConfig> = {
   default: {
     w: 320, h: 96,
@@ -54,8 +56,11 @@ const THEME_CONFIGS: Record<OverlayTheme, ThemeConfig> = {
   glass: {
     w: 320, h: 96,
     showWaveform: true,
-    containerClass: "bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl",
-    waveformColor: "255, 255, 255",
+    // Windows: same as default (backdrop-blur breaks canvas in WebView2, transparency unreliable)
+    containerClass: IS_WINDOWS
+      ? "bg-background/90 rounded-3xl"
+      : "bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl",
+    waveformColor: IS_WINDOWS ? "" : "255, 255, 255",
   },
   compact: {
     w: 110, h: 36,
@@ -64,10 +69,6 @@ const THEME_CONFIGS: Record<OverlayTheme, ThemeConfig> = {
     waveformColor: "",
   },
 };
-
-// Windows: shadow makes rounded corners visible against opaque window bg
-// Kept as separate class so Tailwind scanner detects it: shadow-2xl
-const WIN_SHADOW = navigator.userAgent.includes("Windows") ? "shadow-2xl" : "";
 
 interface WorkArea {
   x: number;
@@ -197,13 +198,12 @@ export default function RecordingOverlay({ status }: Props) {
   const config = THEME_CONFIGS[theme];
   const waveformColor = config.waveformColor || (ACCENT_RGB[accentKey] || ACCENT_RGB.blue);
 
-  // Transparent background so rounded corners show through, hide scrollbars
+  // Set overlay background
   useEffect(() => {
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
     invoke<string>("get_build_variant").then((variant) => {
       if (variant === "mas") {
-        // MAS: CALayer clips corners, use black behind the mask
         document.documentElement.style.background = "#000";
         document.body.style.background = "#000";
       } else {
@@ -261,7 +261,7 @@ export default function RecordingOverlay({ status }: Props) {
     const isSmall = theme === "compact" || theme === "minimal";
     return (
       <div
-        className={`flex items-center justify-center h-full px-4 select-none ${config.containerClass} ${WIN_SHADOW}`}
+        className={`flex items-center justify-center h-full px-4 select-none ${config.containerClass}`}
 
         data-tauri-drag-region
       >
@@ -277,7 +277,7 @@ export default function RecordingOverlay({ status }: Props) {
   if (theme === "compact") {
     return (
       <div
-        className={`flex items-center justify-center gap-2 h-full px-4 select-none ${config.containerClass} ${WIN_SHADOW}`}
+        className={`flex items-center justify-center gap-2 h-full px-4 select-none ${config.containerClass}`}
         data-tauri-drag-region
       >
         <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -290,7 +290,7 @@ export default function RecordingOverlay({ status }: Props) {
   if (theme === "minimal") {
     return (
       <div
-        className={`flex items-center h-full px-4 gap-3 select-none ${config.containerClass} ${WIN_SHADOW}`}
+        className={`flex items-center h-full px-4 gap-3 select-none ${config.containerClass}`}
         data-tauri-drag-region
       >
         <div className="flex items-center gap-2 shrink-0">
@@ -310,7 +310,7 @@ export default function RecordingOverlay({ status }: Props) {
   // Default / Glass: full layout with waveform + timer + hotkey hints
   return (
     <div
-      className={`flex flex-col h-full px-4 py-3 select-none ${config.containerClass} ${WIN_SHADOW}`}
+      className={`flex flex-col h-full px-4 py-3 select-none ${config.containerClass}`}
       data-tauri-drag-region
     >
       <div className="flex-1 min-h-0 flex items-center overflow-hidden">

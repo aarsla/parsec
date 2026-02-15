@@ -12,6 +12,7 @@ use cocoa::{
 use objc::{msg_send, sel, sel_impl};
 
 /// Configuration for Traffic Lights positioning
+#[allow(dead_code)]
 pub struct TrafficLightsConfig {
     /// Offset in pixels from default position (positive = right, negative = left)
     pub offset_x: f64,
@@ -33,46 +34,46 @@ impl Default for TrafficLightsConfig {
 #[tauri::command]
 pub fn enable_rounded_corners<R: Runtime>(
     _app: AppHandle<R>,
-    window: WebviewWindow<R>,
-    offset_x: Option<f64>,
-    offset_y: Option<f64>,
+    _window: WebviewWindow<R>,
+    _offset_x: Option<f64>,
+    _offset_y: Option<f64>,
 ) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         let config = TrafficLightsConfig {
-            offset_x: offset_x.unwrap_or(0.0),
-            offset_y: offset_y.unwrap_or(0.0),
+            offset_x: _offset_x.unwrap_or(0.0),
+            offset_y: _offset_y.unwrap_or(0.0),
         };
 
-        window
+        _window
             .with_webview(move |webview| {
                 #[cfg(target_os = "macos")]
                 unsafe {
                     let ns_window = webview.ns_window() as id;
-                    
+
                     let mut style_mask = ns_window.styleMask();
-                    
+
                     // Add necessary styles for rounded corners
                     style_mask |= NSWindowStyleMask::NSFullSizeContentViewWindowMask;
                     style_mask |= NSWindowStyleMask::NSTitledWindowMask;
                     style_mask |= NSWindowStyleMask::NSClosableWindowMask;
                     style_mask |= NSWindowStyleMask::NSMiniaturizableWindowMask;
                     style_mask |= NSWindowStyleMask::NSResizableWindowMask;
-                    
+
                     ns_window.setStyleMask_(style_mask);
                     ns_window.setTitlebarAppearsTransparent_(cocoa::base::YES);
-                    
+
                     let content_view = ns_window.contentView();
                     content_view.setWantsLayer(cocoa::base::YES);
-                    
+
                     position_traffic_lights(ns_window, config.offset_x, config.offset_y);
                 }
             })
             .map_err(|e| e.to_string())?;
-        
+
         Ok(())
     }
-    
+
     #[cfg(not(target_os = "macos"))]
     {
         Ok(())
@@ -83,25 +84,25 @@ pub fn enable_rounded_corners<R: Runtime>(
 #[tauri::command]
 pub fn enable_modern_window_style<R: Runtime>(
     _app: AppHandle<R>,
-    window: WebviewWindow<R>,
-    corner_radius: Option<f64>,
-    offset_x: Option<f64>,
-    offset_y: Option<f64>,
+    _window: WebviewWindow<R>,
+    _corner_radius: Option<f64>,
+    _offset_x: Option<f64>,
+    _offset_y: Option<f64>,
 ) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         let config = TrafficLightsConfig {
-            offset_x: offset_x.unwrap_or(0.0),
-            offset_y: offset_y.unwrap_or(0.0),
+            offset_x: _offset_x.unwrap_or(0.0),
+            offset_y: _offset_y.unwrap_or(0.0),
         };
-        let radius = corner_radius.unwrap_or(12.0);
+        let radius = _corner_radius.unwrap_or(12.0);
 
-        window
+        _window
             .with_webview(move |webview| {
                 #[cfg(target_os = "macos")]
                 unsafe {
                     let ns_window = webview.ns_window() as id;
-                    
+
                     let mut style_mask = ns_window.styleMask();
                     
                     style_mask |= NSWindowStyleMask::NSFullSizeContentViewWindowMask;
@@ -143,18 +144,18 @@ pub fn enable_modern_window_style<R: Runtime>(
 #[tauri::command]
 pub fn reposition_traffic_lights<R: Runtime>(
     _app: AppHandle<R>,
-    window: WebviewWindow<R>,
-    offset_x: Option<f64>,
-    offset_y: Option<f64>,
+    _window: WebviewWindow<R>,
+    _offset_x: Option<f64>,
+    _offset_y: Option<f64>,
 ) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         let config = TrafficLightsConfig {
-            offset_x: offset_x.unwrap_or(0.0),
-            offset_y: offset_y.unwrap_or(0.0),
+            offset_x: _offset_x.unwrap_or(0.0),
+            offset_y: _offset_y.unwrap_or(0.0),
         };
 
-        window
+        _window
             .with_webview(move |webview| {
                 #[cfg(target_os = "macos")]
                 unsafe {

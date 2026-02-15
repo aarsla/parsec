@@ -525,3 +525,4 @@ pub fn get_build_variant() -> String {
         "direct".to_string()
     }
 }
+
