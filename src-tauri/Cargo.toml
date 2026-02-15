@@ -43,6 +43,7 @@ whisper-rs = { version = "0.15", features = ["metal"] }
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", features = ["NSString"] }
 macos-accessibility-client = "0.0.1"
+core-foundation = "0.9"
 core-graphics = "0.24"
 cocoa = "0.26"
 objc = "0.2.7"

@@ -190,11 +190,21 @@ pub fn request_microphone_permission() {
 pub fn check_accessibility_permission() -> String {
     #[cfg(target_os = "macos")]
     {
-        if macos_accessibility_client::accessibility::application_is_trusted() {
-            "granted".to_string()
-        } else {
-            "denied".to_string()
-        }
+        // AXIsProcessTrusted() caches results and is unreliable for signed builds.
+        // AXIsProcessTrustedWithOptions(prompt=false) gives fresh results.
+        use core_foundation::boolean::CFBoolean;
+        use core_foundation::dictionary::CFDictionary;
+        use core_foundation::string::CFString;
+        use core_foundation::base::TCFType;
+        use macos_accessibility_client::raw::{kAXTrustedCheckOptionPrompt, AXIsProcessTrustedWithOptions};
+
+        let trusted = unsafe {
+            let key = CFString::wrap_under_get_rule(kAXTrustedCheckOptionPrompt);
+            let dict: CFDictionary<CFString, CFBoolean> =
+                CFDictionary::from_CFType_pairs(&[(key, CFBoolean::false_value())]);
+            AXIsProcessTrustedWithOptions(dict.as_concrete_TypeRef()) != 0
+        };
+        if trusted { "granted".to_string() } else { "denied".to_string() }
     }
     #[cfg(not(target_os = "macos"))]
     {
